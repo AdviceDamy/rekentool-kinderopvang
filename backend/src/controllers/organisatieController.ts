@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { OrganisatieModel, Organisatie } from '../models/Organisatie';
+import { OrganisatieModel, Organisatie, WizardConfiguratie } from '../models/Organisatie';
 import { UserModel } from '../models/User';
 import { UserRole } from '../types';
 import { OrganisatieRequest } from '../middleware/organisatieContext';
@@ -308,6 +308,178 @@ export const updateToeslagInstellingen = async (req: OrganisatieRequest, res: Re
     res.status(500).json({
       success: false,
       error: 'Fout bij bijwerken toeslag instellingen'
+    });
+  }
+};
+
+/**
+ * Wizard configuratie ophalen voor een organisatie (superuser only)
+ */
+export const getWizardConfiguratie = async (req: OrganisatieRequest, res: Response): Promise<void> => {
+  try {
+    // Zowel superusers als organisatie beheerders kunnen wizard configuratie ophalen
+    if (req.user?.role !== 'superuser' && req.user?.role !== 'organisatie_beheerder') {
+      res.status(403).json({
+        success: false,
+        error: 'Alleen superusers en organisatie beheerders kunnen wizard configuratie ophalen'
+      });
+      return;
+    }
+
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({
+        success: false,
+        error: 'Ongeldig organisatie ID'
+      });
+      return;
+    }
+
+    // Organisatie beheerders kunnen alleen hun eigen organisatie configuratie ophalen
+    if (req.user?.role === 'organisatie_beheerder' && req.user?.organisatieId !== id) {
+      res.status(403).json({
+        success: false,
+        error: 'U kunt alleen uw eigen organisatie configuratie beheren'
+      });
+      return;
+    }
+
+    const configuratie = await OrganisatieModel.getWizardConfiguratie(id);
+    if (!configuratie) {
+      res.status(404).json({
+        success: false,
+        error: 'Organisatie niet gevonden'
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: configuratie
+    });
+  } catch (error) {
+    console.error('Error getting wizard configuratie:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Fout bij ophalen wizard configuratie'
+    });
+  }
+};
+
+/**
+ * Wizard configuratie bijwerken voor een organisatie (superuser only)
+ */
+export const updateWizardConfiguratie = async (req: OrganisatieRequest, res: Response): Promise<void> => {
+  try {
+    // Zowel superusers als organisatie beheerders kunnen wizard configuratie bijwerken
+    if (req.user?.role !== 'superuser' && req.user?.role !== 'organisatie_beheerder') {
+      res.status(403).json({
+        success: false,
+        error: 'Alleen superusers en organisatie beheerders kunnen wizard configuratie bijwerken'
+      });
+      return;
+    }
+
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({
+        success: false,
+        error: 'Ongeldig organisatie ID'
+      });
+      return;
+    }
+
+    // Organisatie beheerders kunnen alleen hun eigen organisatie configuratie wijzigen
+    if (req.user?.role === 'organisatie_beheerder' && req.user?.organisatieId !== id) {
+      res.status(403).json({
+        success: false,
+        error: 'U kunt alleen uw eigen organisatie configuratie beheren'
+      });
+      return;
+    }
+
+    const {
+      welkom,
+      kinderen,
+      opvangvorm,
+      tarief,
+      planning,
+      resultaat,
+      jaarplanning,
+      vergelijking
+    } = req.body;
+
+    // Validatie - minimaal welkom, opvangvorm, tarief en resultaat moeten aan staan
+    const requiredSteps = ['welkom', 'opvangvorm', 'tarief', 'resultaat'];
+    const configuratie: WizardConfiguratie = {
+      welkom: welkom !== undefined ? welkom : true,
+      kinderen: kinderen !== undefined ? kinderen : true,
+      opvangvorm: opvangvorm !== undefined ? opvangvorm : true,
+      tarief: tarief !== undefined ? tarief : true,
+      planning: planning !== undefined ? planning : true,
+      resultaat: resultaat !== undefined ? resultaat : true,
+      jaarplanning: jaarplanning !== undefined ? jaarplanning : true,
+      vergelijking: vergelijking !== undefined ? vergelijking : true
+    };
+
+    // Check of verplichte stappen zijn ingeschakeld
+    const missingRequired = requiredSteps.filter(step => !configuratie[step as keyof WizardConfiguratie]);
+    if (missingRequired.length > 0) {
+      res.status(400).json({
+        success: false,
+        error: `De volgende stappen zijn verplicht: ${missingRequired.join(', ')}`
+      });
+      return;
+    }
+
+    const updatedOrganisatie = await OrganisatieModel.updateWizardConfiguratie(id, configuratie);
+    if (!updatedOrganisatie) {
+      res.status(404).json({
+        success: false,
+        error: 'Organisatie niet gevonden'
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: configuratie,
+      message: 'Wizard configuratie succesvol bijgewerkt'
+    });
+  } catch (error) {
+    console.error('Error updating wizard configuratie:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Fout bij bijwerken wizard configuratie'
+    });
+  }
+};
+
+/**
+ * Wizard configuratie ophalen voor publieke routes (via slug)
+ */
+export const getWizardConfiguratieBySlug = async (req: OrganisatieRequest, res: Response): Promise<void> => {
+  try {
+    const { slug } = req.params;
+    const configuratie = await OrganisatieModel.getWizardConfiguratieBySlug(slug);
+    
+    if (!configuratie) {
+      res.status(404).json({
+        success: false,
+        error: 'Organisatie niet gevonden'
+      });
+      return;
+    }
+    
+    res.json({
+      success: true,
+      data: configuratie
+    });
+  } catch (error) {
+    console.error('Fout bij ophalen wizard configuratie:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Fout bij ophalen wizard configuratie'
     });
   }
 }; 

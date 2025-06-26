@@ -21,14 +21,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [organisatie, setOrganisatie] = useState<Organisatie | null>(null);
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
   const [loading, setLoading] = useState(true);
+  const [isImpersonating, setIsImpersonating] = useState(false);
+  const [originalUser, setOriginalUser] = useState<User | null>(null);
 
   useEffect(() => {
     const initAuth = async () => {
       if (token) {
         try {
           const data = await authAPI.me();
-          setUser(data.user);
-          setOrganisatie(data.organisatie);
+          
+          // Check voor superuser impersonation
+          const impersonationData = localStorage.getItem('superuser_impersonation');
+          if (impersonationData && data.user.role === 'superuser') {
+            const { originalRole, impersonatingOrganisatie } = JSON.parse(impersonationData);
+            
+            // Zet impersonation state
+            setIsImpersonating(true);
+            setOriginalUser(data.user);
+            setUser({ ...data.user, role: 'organisatie_beheerder', organisatieId: impersonatingOrganisatie.id });
+            setOrganisatie(impersonatingOrganisatie);
+          } else {
+            setUser(data.user);
+            setOrganisatie(data.organisatie);
+            setIsImpersonating(false);
+            setOriginalUser(null);
+          }
         } catch (error) {
           console.error('Failed to fetch user data:', error);
           localStorage.removeItem('token');
@@ -57,9 +74,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('superuser_impersonation');
     setToken(null);
     setUser(null);
     setOrganisatie(null);
+    setIsImpersonating(false);
+    setOriginalUser(null);
+  };
+
+  const stopImpersonation = () => {
+    localStorage.removeItem('superuser_impersonation');
+    if (originalUser) {
+      setUser(originalUser);
+      setOrganisatie(null);
+      setIsImpersonating(false);
+      setOriginalUser(null);
+    }
   };
 
   const value: AuthContextType = {
@@ -69,6 +99,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     logout,
     loading,
+    isImpersonating,
+    originalUser,
+    stopImpersonation,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

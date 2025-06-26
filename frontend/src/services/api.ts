@@ -10,13 +10,25 @@ const api = axios.create({
   },
 });
 
-// Request interceptor to add auth token
+// Request interceptor to add auth token and impersonation header
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Add impersonation header if active
+    const impersonationData = localStorage.getItem('superuser_impersonation');
+    if (impersonationData) {
+      try {
+        const { impersonatingOrganisatie } = JSON.parse(impersonationData);
+        config.headers['X-Impersonate-Organisation'] = impersonatingOrganisatie.id.toString();
+      } catch (error) {
+        console.error('Error parsing impersonation data:', error);
+      }
+    }
+    
     return config;
   },
   (error) => {

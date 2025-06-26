@@ -1,5 +1,16 @@
 import db from '../utils/database';
 
+export interface WizardConfiguratie {
+  welkom: boolean;
+  kinderen: boolean;
+  opvangvorm: boolean;
+  tarief: boolean;
+  planning: boolean;
+  resultaat: boolean;
+  jaarplanning: boolean;
+  vergelijking: boolean;
+}
+
 export interface Organisatie {
   id?: number;
   naam: string;
@@ -16,6 +27,7 @@ export interface Organisatie {
   gemeente_toeslag_actief?: boolean;
   standaard_inkomensklasse?: string | null; // JSON string met inkomensklasse data
   toeslag_automatisch_berekenen?: boolean;
+  wizard_configuratie?: string | null; // JSON string van WizardConfiguratie
   created_at?: Date;
   updated_at?: Date;
 }
@@ -113,5 +125,64 @@ export class OrganisatieModel {
       gemeente_toeslag_percentage: organisatie.gemeente_toeslag_percentage || 0,
       gemeente_toeslag_actief: organisatie.gemeente_toeslag_actief || false
     };
+  }
+
+  /**
+   * Update wizard configuratie voor een organisatie
+   */
+  static async updateWizardConfiguratie(
+    id: number,
+    configuratie: WizardConfiguratie
+  ): Promise<Organisatie | undefined> {
+    return this.update(id, {
+      wizard_configuratie: JSON.stringify(configuratie)
+    });
+  }
+
+  /**
+   * Haal wizard configuratie op voor een organisatie
+   */
+  static async getWizardConfiguratie(id: number): Promise<WizardConfiguratie | null> {
+    const organisatie = await db('organisaties')
+      .select('wizard_configuratie')
+      .where({ id, actief: true })
+      .first();
+
+    if (!organisatie) {
+      return null;
+    }
+
+    // Gebruik standaard configuratie als er geen is ingesteld
+    const standaardConfiguratie: WizardConfiguratie = {
+      welkom: true,
+      kinderen: true,
+      opvangvorm: true,
+      tarief: true,
+      planning: true,
+      resultaat: true,
+      jaarplanning: true,
+      vergelijking: true
+    };
+
+    if (!organisatie.wizard_configuratie) {
+      return standaardConfiguratie;
+    }
+
+    try {
+      return JSON.parse(organisatie.wizard_configuratie);
+    } catch {
+      return standaardConfiguratie;
+    }
+  }
+
+  /**
+   * Haal wizard configuratie op voor publieke routes (via slug)
+   */
+  static async getWizardConfiguratieBySlug(slug: string): Promise<WizardConfiguratie | null> {
+    const organisatie = await this.getBySlug(slug);
+    if (!organisatie?.id) {
+      return null;
+    }
+    return this.getWizardConfiguratie(organisatie.id);
   }
 } 

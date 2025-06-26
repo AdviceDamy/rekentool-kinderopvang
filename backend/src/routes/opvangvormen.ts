@@ -20,6 +20,7 @@ router.get('/publiek/:organisatieId', getOpvangvormenPubliek);
 
 // Beveiligde routes vereisen authenticatie en organisatie beheerder rol
 router.use(authenticateToken);
+router.use(organisatieContext); // Voor impersonation support
 router.use(requireOrganisatieBeheerder);
 
 // GET /api/opvangvormen/beheer - Alle opvangvormen van de organisatie (voor beheerders)

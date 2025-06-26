@@ -42,6 +42,17 @@ interface Organisatie {
   toeslag_automatisch_berekenen?: boolean;
 }
 
+interface WizardConfiguratie {
+  welkom: boolean;
+  kinderen: boolean;
+  opvangvorm: boolean;
+  tarief: boolean;
+  planning: boolean;
+  resultaat: boolean;
+  jaarplanning: boolean;
+  vergelijking: boolean;
+}
+
 interface Opvangvorm {
   id: number;
   naam: string;
@@ -156,6 +167,16 @@ const RekentoolWizardPage: React.FC = () => {
   
   // Data state
   const [organisatie, setOrganisatie] = useState<Organisatie | null>(null);
+  const [wizardConfiguratie, setWizardConfiguratie] = useState<WizardConfiguratie>({
+    welkom: true,
+    kinderen: true,
+    opvangvorm: true,
+    tarief: true,
+    planning: true,
+    resultaat: true,
+    jaarplanning: true,
+    vergelijking: true
+  });
   const [opvangvormen, setOpvangvormen] = useState<Opvangvorm[]>([]);
   const [tarieven, setTarieven] = useState<Tarief[]>([]);
   const [inkomensklassen, setInkomensklassen] = useState<Inkomensklasse[]>([]);
@@ -188,6 +209,54 @@ const RekentoolWizardPage: React.FC = () => {
   // Jaarplanning
   const [vakantieweken, setVakantieweken] = useState<VakantieWeek[]>([]);
   const [jaarplanningResultaat, setJaarplanningResultaat] = useState<JaarPlanningResultaat | null>(null);
+
+  // Dynamic wizard steps based on configuration
+  const getActiveSteps = () => {
+    const stepMapping = [
+      { config: wizardConfiguratie.welkom, step: WIZARD_STEPS[0] },
+      { config: wizardConfiguratie.kinderen, step: WIZARD_STEPS[1] },
+      { config: wizardConfiguratie.opvangvorm, step: WIZARD_STEPS[2] },
+      { config: wizardConfiguratie.tarief, step: WIZARD_STEPS[3] },
+      { config: wizardConfiguratie.planning, step: WIZARD_STEPS[4] },
+      { config: wizardConfiguratie.resultaat, step: WIZARD_STEPS[5] },
+      { config: wizardConfiguratie.jaarplanning, step: WIZARD_STEPS[6] },
+      { config: wizardConfiguratie.vergelijking, step: WIZARD_STEPS[7] }
+    ];
+    
+    return stepMapping
+      .filter(item => item.config)
+      .map((item, index) => ({ ...item.step, id: index + 1 }));
+  };
+
+  const getStepByOriginalId = (originalId: number) => {
+    const activeSteps = getActiveSteps();
+    const stepMapping = [
+      { original: 1, config: 'welkom' },
+      { original: 2, config: 'kinderen' },
+      { original: 3, config: 'opvangvorm' },
+      { original: 4, config: 'tarief' },
+      { original: 5, config: 'planning' },
+      { original: 6, config: 'resultaat' },
+      { original: 7, config: 'jaarplanning' },
+      { original: 8, config: 'vergelijking' }
+    ];
+    
+    const mapping = stepMapping.find(s => s.original === originalId);
+    if (!mapping) return null;
+    
+    return activeSteps.find(step => 
+      step.title.toLowerCase() === mapping.config.replace('jaarplanning', 'jaarplanning').replace('vergelijking', 'vergelijken')
+    );
+  };
+
+  const getCurrentStepConfig = () => {
+    const activeSteps = getActiveSteps();
+    return activeSteps[currentStep - 1];
+  };
+
+  const getTotalSteps = () => {
+    return getActiveSteps().length;
+  };
 
   // Helper functions voor kinderen beheer
   const addKind = () => {
@@ -426,6 +495,15 @@ const RekentoolWizardPage: React.FC = () => {
         }
       }
 
+      // Haal wizard configuratie op
+      const wizardResponse = await fetch(`${apiUrl}/api/organisaties/public/${organisatieSlug}/wizard-configuratie`);
+      if (wizardResponse.ok) {
+        const wizardResult = await wizardResponse.json();
+        if (wizardResult.success) {
+          setWizardConfiguratie(wizardResult.data);
+        }
+      }
+
     } catch (error) {
       console.error('Fout bij laden organisatiedata:', error);
       setError(error instanceof Error ? error.message : 'Kon organisatiegegevens niet laden');
@@ -455,20 +533,24 @@ const RekentoolWizardPage: React.FC = () => {
   };
 
   const isStepValid = (step: number): boolean => {
+    const activeSteps = getActiveSteps();
+    const stepConfig = activeSteps[step - 1];
+    if (!stepConfig) return false;
+    
     const currentKind = getCurrentKind();
     const allKinderenComplete = kinderen.every(k => 
       k.opvangvorm_id !== '' && k.tariefId !== '' && k.uren_per_week > 0 && k.dagen_per_week > 0
     );
     
-    switch (step) {
-      case 1: return true; // Welkom stap is altijd geldig
-      case 2: return kinderen.length > 0; // Aantal kinderen gekozen
-      case 3: return currentKind && currentKind.opvangvorm_id !== '';
-      case 4: return currentKind && currentKind.tariefId !== '';
-      case 5: return currentKind && currentKind.uren_per_week > 0 && currentKind.dagen_per_week > 0;
-      case 6: return allKinderenComplete && resultaat !== null;
-      case 7: return vakantieweken.length > 0; // Jaarplanning - vakantieweken geladen
-      case 8: return true; // Vergelijking stap is altijd toegankelijk
+    switch (stepConfig.title) {
+      case 'Welkom': return true;
+      case 'Kinderen': return kinderen.length > 0;
+      case 'Opvangvorm': return currentKind && currentKind.opvangvorm_id !== '';
+      case 'Tarief': return currentKind && currentKind.tariefId !== '';
+      case 'Planning': return currentKind && currentKind.uren_per_week > 0 && currentKind.dagen_per_week > 0;
+      case 'Resultaat': return allKinderenComplete && resultaat !== null;
+      case 'Jaarplanning': return vakantieweken.length > 0;
+      case 'Vergelijken': return true;
       default: return false;
     }
   };
@@ -478,14 +560,19 @@ const RekentoolWizardPage: React.FC = () => {
   };
 
   const nextStep = () => {
-    if (currentStep < WIZARD_STEPS.length && canGoToNextStep()) {
-      if (currentStep === 5) {
-        // Auto-berekenen bij stap 6 (resultaat)
+    const totalSteps = getTotalSteps();
+    if (currentStep < totalSteps && canGoToNextStep()) {
+      const activeSteps = getActiveSteps();
+      const currentStepConfig = activeSteps[currentStep - 1];
+      const nextStepConfig = activeSteps[currentStep];
+      
+      // Auto-berekenen bij resultaat stap
+      if (currentStepConfig?.title === 'Planning' && nextStepConfig?.title === 'Resultaat') {
         berekenKosten();
-      } else if (currentStep === 7 && resultaat) {
-        // Auto-berekenen jaarplanning bij stap 8 (vergelijking)
+      } else if (currentStepConfig?.title === 'Jaarplanning' && nextStepConfig?.title === 'Vergelijken' && resultaat) {
         berekenJaarplanning();
       }
+      
       setCurrentStep(currentStep + 1);
     }
   };
@@ -1616,7 +1703,7 @@ const RekentoolWizardPage: React.FC = () => {
       <Box bg="white" borderBottom="1px solid" borderColor="gray.200" px={4} py={3}>
         <Box maxWidth="800px" mx="auto">
           <HStack gap={2} mb={2}>
-            {WIZARD_STEPS.map((step, index) => {
+            {getActiveSteps().map((step, index) => {
               const isActive = currentStep === step.id;
               const isCompleted = currentStep > step.id;
               const stepColor = isActive ? '#FF6766' : isCompleted ? '#4CAF50' : '#CBD5E0';
@@ -1637,7 +1724,7 @@ const RekentoolWizardPage: React.FC = () => {
                   >
                     {isCompleted ? <CheckCircleIcon style={{ fontSize: 16 }} /> : step.id}
                   </Box>
-                  {index < WIZARD_STEPS.length - 1 && (
+                  {index < getActiveSteps().length - 1 && (
                     <Box flex={1} h="2px" bg={isCompleted ? '#4CAF50' : '#E2E8F0'} />
                   )}
                 </React.Fragment>
@@ -1645,7 +1732,7 @@ const RekentoolWizardPage: React.FC = () => {
             })}
           </HStack>
           <Text fontSize="sm" color="gray.600" textAlign="center">
-            Stap {currentStep} van {WIZARD_STEPS.length}: {WIZARD_STEPS.find(s => s.id === currentStep)?.title}
+            Stap {currentStep} van {getTotalSteps()}: {getCurrentStepConfig()?.title}
           </Text>
         </Box>
       </Box>
@@ -1672,14 +1759,14 @@ const RekentoolWizardPage: React.FC = () => {
 
            <Button
              onClick={nextStep}
-             disabled={!canGoToNextStep() || currentStep === WIZARD_STEPS.length}
+             disabled={!canGoToNextStep() || currentStep === getTotalSteps()}
              bg="#FF6766"
              color="white"
              size="lg"
              _hover={{ bg: '#E55A59' }}
            >
-             {currentStep === WIZARD_STEPS.length ? 'Voltooien' : 'Volgende'}
-             {currentStep < WIZARD_STEPS.length && (
+             {currentStep === getTotalSteps() ? 'Voltooien' : 'Volgende'}
+             {currentStep < getTotalSteps() && (
                <ArrowForwardIcon style={{ marginLeft: '8px' }} />
              )}
            </Button>

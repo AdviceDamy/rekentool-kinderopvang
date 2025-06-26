@@ -2,9 +2,10 @@ import { Request, Response } from 'express';
 import { OpvangvormModel, Opvangvorm } from '../models/Opvangvorm';
 import { OrganisatieRequest } from '../middleware/organisatieContext';
 
-export const getOpvangvormen = async (req: Request, res: Response): Promise<void> => {
+export const getOpvangvormen = async (req: OrganisatieRequest, res: Response): Promise<void> => {
   try {
-    const organisatieId = req.user?.organisatieId;
+    // Bij impersonation gebruiken we req.organisatie, anders req.user.organisatieId
+    const organisatieId = req.organisatie?.id || req.user?.organisatieId;
     if (!organisatieId) {
       res.status(400).json({ error: 'Organisatie ID ontbreekt' });
       return;
@@ -54,10 +55,10 @@ export const getOpvangvormenPubliek = async (req: OrganisatieRequest, res: Respo
   }
 };
 
-export const getOpvangvorm = async (req: Request, res: Response): Promise<void> => {
+export const getOpvangvorm = async (req: OrganisatieRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const organisatieId = req.user?.organisatieId;
+    const organisatieId = req.organisatie?.id || req.user?.organisatieId;
     
     if (!organisatieId) {
       res.status(400).json({ error: 'Organisatie ID ontbreekt' });
@@ -77,10 +78,10 @@ export const getOpvangvorm = async (req: Request, res: Response): Promise<void> 
   }
 };
 
-export const createOpvangvorm = async (req: Request, res: Response): Promise<void> => {
+export const createOpvangvorm = async (req: OrganisatieRequest, res: Response): Promise<void> => {
   try {
     const { naam, omschrijving } = req.body;
-    const organisatieId = req.user?.organisatieId;
+    const organisatieId = req.organisatie?.id || req.user?.organisatieId;
     
     if (!organisatieId) {
       res.status(400).json({ error: 'Organisatie ID ontbreekt' });
@@ -106,11 +107,11 @@ export const createOpvangvorm = async (req: Request, res: Response): Promise<voi
   }
 };
 
-export const updateOpvangvorm = async (req: Request, res: Response): Promise<void> => {
+export const updateOpvangvorm = async (req: OrganisatieRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { naam, omschrijving } = req.body;
-    const organisatieId = req.user?.organisatieId;
+    const organisatieId = req.organisatie?.id || req.user?.organisatieId;
     
     if (!organisatieId) {
       res.status(400).json({ error: 'Organisatie ID ontbreekt' });
@@ -139,10 +140,10 @@ export const updateOpvangvorm = async (req: Request, res: Response): Promise<voi
   }
 };
 
-export const deleteOpvangvorm = async (req: Request, res: Response): Promise<void> => {
+export const deleteOpvangvorm = async (req: OrganisatieRequest, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const organisatieId = req.user?.organisatieId;
+    const organisatieId = req.organisatie?.id || req.user?.organisatieId;
     
     if (!organisatieId) {
       res.status(400).json({ error: 'Organisatie ID ontbreekt' });
