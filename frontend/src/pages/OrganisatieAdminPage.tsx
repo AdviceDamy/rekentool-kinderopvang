@@ -25,6 +25,11 @@ interface Organisatie {
   website?: string;
   slug: string;
   actief: boolean;
+  actief_toeslagjaar?: number;
+  gemeente_toeslag_percentage?: number;
+  gemeente_toeslag_actief?: boolean;
+  standaard_inkomensklasse?: string;
+  toeslag_automatisch_berekenen?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -45,6 +50,21 @@ interface Tarief {
   actief: boolean;
 }
 
+interface Toeslagtabel {
+  id: number;
+  jaar: number;
+  actief: boolean;
+}
+
+interface Inkomensklasse {
+  id: number;
+  min: number;
+  max: number | null;
+  label: string;
+  perc_first_child: number;
+  perc_other_children: number;
+}
+
 const OrganisatieAdminPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -53,7 +73,10 @@ const OrganisatieAdminPage: React.FC = () => {
   const [organisatie, setOrganisatie] = useState<Organisatie | null>(null);
   const [opvangvormen, setOpvangvormen] = useState<Opvangvorm[]>([]);
   const [tarieven, setTarieven] = useState<Tarief[]>([]);
+  const [toeslagtabellen, setToeslagtabellen] = useState<Toeslagtabel[]>([]);
+  const [inkomensklassen, setInkomensklassen] = useState<Inkomensklasse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [savingToeslag, setSavingToeslag] = useState(false);
 
   useEffect(() => {
     if (user?.role !== UserRole.SUPERUSER) {
@@ -97,6 +120,31 @@ const OrganisatieAdminPage: React.FC = () => {
         }
       }
 
+      // Haal beschikbare toeslagtabellen op (superuser endpoint)
+      const token = localStorage.getItem('token');
+      if (token) {
+        const toeslagResponse = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5007'}/api/toeslagtabellen`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (toeslagResponse.ok) {
+          const toeslagResult = await toeslagResponse.json();
+          if (toeslagResult.success) {
+            setToeslagtabellen(toeslagResult.data || []);
+          }
+        }
+
+        // Haal inkomensklassen op als organisatie een actief toeslagjaar heeft
+        if (orgResult.data.actief_toeslagjaar) {
+          const inkomensResponse = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5007'}/api/toeslag/${orgResult.data.actief_toeslagjaar}/inkomensklassen`);
+          if (inkomensResponse.ok) {
+            const inkomensResult = await inkomensResponse.json();
+            if (inkomensResult.success) {
+              setInkomensklassen(inkomensResult.data.inkomensklassen || []);
+            }
+          }
+        }
+      }
+
     } catch (error) {
       console.error('Fout bij laden organisatie data:', error);
       alert('Kon organisatie data niet laden');
@@ -107,6 +155,64 @@ const OrganisatieAdminPage: React.FC = () => {
 
   const openPublicPage = () => {
     window.open(`/rekentool/${slug}`, '_blank');
+  };
+
+  const handleToeslagjarChange = async (jaar: string) => {
+    if (!organisatie) return;
+    
+    const nieuwJaar = jaar ? parseInt(jaar) : null;
+    
+    // Update lokale state
+    setOrganisatie({ ...organisatie, actief_toeslagjaar: nieuwJaar || undefined });
+    
+    // Reset inkomensklassen als jaar verandert
+    setInkomensklassen([]);
+    
+    // Haal nieuwe inkomensklassen op
+    if (nieuwJaar) {
+      const inkomensResponse = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5007'}/api/toeslag/${nieuwJaar}/inkomensklassen`);
+      if (inkomensResponse.ok) {
+        const inkomensResult = await inkomensResponse.json();
+        if (inkomensResult.success) {
+          setInkomensklassen(inkomensResult.data.inkomensklassen || []);
+        }
+      }
+    }
+  };
+
+  const saveToeslagInstellingen = async () => {
+    if (!organisatie) return;
+    
+    try {
+      setSavingToeslag(true);
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5007'}/api/organisaties/${organisatie.id}/toeslag-instellingen`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          actief_toeslagjaar: organisatie.actief_toeslagjaar,
+          gemeente_toeslag_percentage: organisatie.gemeente_toeslag_percentage || 0,
+          gemeente_toeslag_actief: organisatie.gemeente_toeslag_actief || false,
+          standaard_inkomensklasse: organisatie.standaard_inkomensklasse,
+          toeslag_automatisch_berekenen: organisatie.toeslag_automatisch_berekenen !== false
+        })
+      });
+
+      if (response.ok) {
+        alert('Toeslag instellingen opgeslagen!');
+      } else {
+        throw new Error('Fout bij opslaan');
+      }
+    } catch (error) {
+      console.error('Fout bij opslaan toeslag instellingen:', error);
+      alert('Kon toeslag instellingen niet opslaan');
+    } finally {
+      setSavingToeslag(false);
+    }
   };
 
   if (loading) {
@@ -281,6 +387,147 @@ const OrganisatieAdminPage: React.FC = () => {
               ))}
             </SimpleGrid>
           )}
+        </Box>
+
+        {/* Toeslag Instellingen */}
+        <Box bg="white" p="6" borderRadius="lg" shadow="sm">
+          <Text fontSize="xl" fontWeight="bold" mb="4">🏛️ Kinderopvangtoeslag Instellingen</Text>
+          
+          <VStack gap="6" align="stretch">
+            {/* Automatisch berekenen */}
+            <Box>
+              <HStack mb="2">
+                <input
+                  type="checkbox"
+                  checked={organisatie.toeslag_automatisch_berekenen !== false}
+                  onChange={(e) => setOrganisatie({
+                    ...organisatie,
+                    toeslag_automatisch_berekenen: e.target.checked
+                  })}
+                />
+                <Text fontWeight="medium">Automatisch toeslagberekening inschakelen</Text>
+              </HStack>
+              <Text fontSize="sm" color="gray.600">
+                Als dit uitstaat, zien ouders geen toeslagberekening in de rekentool
+              </Text>
+            </Box>
+
+            {organisatie.toeslag_automatisch_berekenen !== false && (
+              <>
+                {/* Toeslagjaar selectie */}
+                <Box>
+                  <Text mb="2" fontWeight="medium">Actief toeslagjaar *</Text>
+                  <select
+                    value={organisatie.actief_toeslagjaar || ''}
+                    onChange={(e) => handleToeslagjarChange(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.5rem',
+                      border: '1px solid #E2E8F0',
+                      borderRadius: '6px',
+                      backgroundColor: 'white'
+                    }}
+                  >
+                    <option value="">Geen toeslagjaar geselecteerd</option>
+                    {toeslagtabellen.map((tabel) => (
+                      <option key={tabel.jaar} value={tabel.jaar}>
+                        {tabel.jaar} {tabel.actief ? '(Actief)' : '(Inactief)'}
+                      </option>
+                    ))}
+                  </select>
+                  <Text fontSize="sm" color="gray.500" mt="1">
+                    Selecteer welke toeslagtabel gebruikt moet worden voor berekeningen
+                  </Text>
+                </Box>
+
+                {/* Standaard inkomensklasse */}
+                {inkomensklassen.length > 0 && (
+                  <Box>
+                    <Text mb="2" fontWeight="medium">Standaard inkomensklasse (optioneel)</Text>
+                    <select
+                      value={organisatie.standaard_inkomensklasse || ''}
+                      onChange={(e) => setOrganisatie({
+                        ...organisatie,
+                        standaard_inkomensklasse: e.target.value || undefined
+                      })}
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem',
+                        border: '1px solid #E2E8F0',
+                        borderRadius: '6px',
+                        backgroundColor: 'white'
+                      }}
+                    >
+                      <option value="">Ouders moeten zelf kiezen</option>
+                      {inkomensklassen.map((klasse) => (
+                        <option key={klasse.id} value={JSON.stringify(klasse)}>
+                          {klasse.label} ({klasse.perc_first_child}% toeslag)
+                        </option>
+                      ))}
+                    </select>
+                    <Text fontSize="sm" color="gray.500" mt="1">
+                      Als u dit instelt, hoeven ouders niet zelf hun inkomensklasse te selecteren
+                    </Text>
+                  </Box>
+                )}
+
+                {/* Gemeentelijke toeslag */}
+                <Box>
+                  <HStack mb="2">
+                    <input
+                      type="checkbox"
+                      checked={organisatie.gemeente_toeslag_actief || false}
+                      onChange={(e) => setOrganisatie({
+                        ...organisatie,
+                        gemeente_toeslag_actief: e.target.checked
+                      })}
+                    />
+                    <Text fontWeight="medium">Gemeentelijke toeslag actief</Text>
+                  </HStack>
+                  
+                  {organisatie.gemeente_toeslag_actief && (
+                    <Box mt="3">
+                      <Text mb="2">Gemeentelijk toeslagpercentage</Text>
+                      <HStack>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min="0"
+                          max="100"
+                          value={organisatie.gemeente_toeslag_percentage || 0}
+                          onChange={(e) => setOrganisatie({
+                            ...organisatie,
+                            gemeente_toeslag_percentage: parseFloat(e.target.value) || 0
+                          })}
+                          style={{
+                            padding: '0.5rem',
+                            border: '1px solid #E2E8F0',
+                            borderRadius: '6px',
+                            width: '120px'
+                          }}
+                        />
+                        <Text>%</Text>
+                      </HStack>
+                      <Text fontSize="sm" color="gray.500" mt="1">
+                        Extra percentage dat de gemeente vergoedt (bijv. Amsterdam 4%)
+                      </Text>
+                    </Box>
+                  )}
+                </Box>
+              </>
+            )}
+
+            {/* Opslaan knop */}
+            <Box>
+              <Button
+                onClick={saveToeslagInstellingen}
+                colorScheme="blue"
+                loading={savingToeslag}
+              >
+                {savingToeslag ? 'Opslaan...' : '💾 Toeslag Instellingen Opslaan'}
+              </Button>
+            </Box>
+          </VStack>
         </Box>
 
         {/* Status & Acties */}

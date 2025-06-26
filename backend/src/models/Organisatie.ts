@@ -14,6 +14,8 @@ export interface Organisatie {
   actief_toeslagjaar?: number | null;
   gemeente_toeslag_percentage?: number;
   gemeente_toeslag_actief?: boolean;
+  standaard_inkomensklasse?: string | null; // JSON string met inkomensklasse data
+  toeslag_automatisch_berekenen?: boolean;
   created_at?: Date;
   updated_at?: Date;
 }

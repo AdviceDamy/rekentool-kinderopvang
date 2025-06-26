@@ -235,4 +235,79 @@ export const getAllOrganisaties = async (req: OrganisatieRequest, res: Response)
       error: 'Fout bij ophalen organisaties'
     });
   }
+};
+
+/**
+ * Toeslag instellingen bijwerken voor organisatie (superuser only)
+ */
+export const updateToeslagInstellingen = async (req: OrganisatieRequest, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role !== 'superuser') {
+      res.status(403).json({
+        success: false,
+        error: 'Alleen superusers kunnen toeslag instellingen bijwerken'
+      });
+      return;
+    }
+
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({
+        success: false,
+        error: 'Ongeldig organisatie ID'
+      });
+      return;
+    }
+
+    const {
+      actief_toeslagjaar,
+      gemeente_toeslag_percentage,
+      gemeente_toeslag_actief,
+      standaard_inkomensklasse,
+      toeslag_automatisch_berekenen
+    } = req.body;
+
+    const updates: any = {};
+    
+    if (actief_toeslagjaar !== undefined) {
+      updates.actief_toeslagjaar = actief_toeslagjaar;
+    }
+    
+    if (gemeente_toeslag_percentage !== undefined) {
+      updates.gemeente_toeslag_percentage = gemeente_toeslag_percentage;
+    }
+    
+    if (gemeente_toeslag_actief !== undefined) {
+      updates.gemeente_toeslag_actief = gemeente_toeslag_actief;
+    }
+    
+    if (standaard_inkomensklasse !== undefined) {
+      updates.standaard_inkomensklasse = standaard_inkomensklasse;
+    }
+    
+    if (toeslag_automatisch_berekenen !== undefined) {
+      updates.toeslag_automatisch_berekenen = toeslag_automatisch_berekenen;
+    }
+
+    const updatedOrganisatie = await OrganisatieModel.update(id, updates);
+    if (!updatedOrganisatie) {
+      res.status(404).json({
+        success: false,
+        error: 'Organisatie niet gevonden'
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: updatedOrganisatie,
+      message: 'Toeslag instellingen succesvol bijgewerkt'
+    });
+  } catch (error) {
+    console.error('Error updating toeslag instellingen:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Fout bij bijwerken toeslag instellingen'
+    });
+  }
 }; 

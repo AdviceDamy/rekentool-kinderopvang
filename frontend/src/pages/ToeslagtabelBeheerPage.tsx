@@ -7,34 +7,8 @@ import {
   VStack,
   HStack,
   Badge,
-  IconButton,
   createToaster,
 } from '@chakra-ui/react';
-import {
-  DialogRoot,
-  DialogTrigger,
-  DialogContent,
-  DialogHeader,
-  DialogBody,
-  DialogFooter,
-  DialogTitle,
-  DialogCloseTrigger,
-} from '@chakra-ui/react';
-import {
-  TableRoot,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableColumnHeader,
-} from '@chakra-ui/react';
-import {
-  AlertRoot,
-  AlertIcon,
-  AlertTitle,
-  AlertDescription,
-} from '@chakra-ui/react';
-import { Edit, Trash2, Upload, Download, Eye } from 'lucide-react';
 
 interface Toeslagtabel {
   id: number;
@@ -45,16 +19,14 @@ interface Toeslagtabel {
   updated_at: string;
 }
 
-interface InkomensKlasse {
-  min: number;
-  max: number | null;
-  perc_first_child: number;
-  perc_other_children: number;
-}
-
 interface ToeslagtabelData {
   year: number;
-  income_brackets: InkomensKlasse[];
+  income_brackets: Array<{
+    min: number;
+    max: number | null;
+    perc_first_child: number;
+    perc_other_children: number;
+  }>;
   max_hourly_rates: {
     dagopvang: number;
     bso: number;
@@ -65,12 +37,9 @@ interface ToeslagtabelData {
 const ToeslagtabelBeheerPage: React.FC = () => {
   const [toeslagtabellen, setToeslagtabellen] = useState<Toeslagtabel[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [editingTabel, setEditingTabel] = useState<Toeslagtabel | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
   
-  // Form state
   const [formData, setFormData] = useState<ToeslagtabelData>({
     year: new Date().getFullYear(),
     income_brackets: [
@@ -131,7 +100,6 @@ const ToeslagtabelBeheerPage: React.FC = () => {
       const data = JSON.parse(tabel.data);
       setFormData(data);
     } catch {
-      // Fallback naar default data
       setFormData({
         year: tabel.jaar,
         income_brackets: [
@@ -144,7 +112,7 @@ const ToeslagtabelBeheerPage: React.FC = () => {
         }
       });
     }
-    setShowModal(true);
+    setShowForm(true);
   };
 
   const handleNewTabel = () => {
@@ -163,7 +131,7 @@ const ToeslagtabelBeheerPage: React.FC = () => {
         gastouder: 7.53
       }
     });
-    setShowModal(true);
+    setShowForm(true);
   };
 
   const handleSaveTabel = async () => {
@@ -199,7 +167,7 @@ const ToeslagtabelBeheerPage: React.FC = () => {
             status: 'success',
             duration: 3000,
           });
-          setShowModal(false);
+          setShowForm(false);
           loadToeslagtabellen();
         } else {
           throw new Error(result.error);
@@ -252,77 +220,226 @@ const ToeslagtabelBeheerPage: React.FC = () => {
     }
   };
 
-  const handleFileUpload = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-
-    const file = files[0];
-    if (!file.name.endsWith('.json')) {
-      setUploadError('Alleen JSON bestanden zijn toegestaan');
-      return;
-    }
-
+  const exportToJSON = (tabel: Toeslagtabel) => {
     try {
-      const text = await file.text();
-      const data = JSON.parse(text);
+      let exportData;
       
-      // Validatie
-      if (!data.year || !data.income_brackets || !data.max_hourly_rates) {
-        setUploadError('Ongeldig bestandsformat. Vereiste velden: year, income_brackets, max_hourly_rates');
-        return;
+      try {
+        // Probeer de data als JSON te parsen
+        const parsedData = JSON.parse(tabel.data);
+        exportData = {
+          jaar: tabel.jaar,
+          actief: tabel.actief,
+          ...parsedData
+        };
+      } catch {
+        // Als parsing faalt, export de ruwe data
+        exportData = {
+          jaar: tabel.jaar,
+          actief: tabel.actief,
+          data: tabel.data
+        };
       }
 
-      setFormData(data);
-      setUploadError(null);
-      setShowUploadModal(false);
-      setShowModal(true);
+      const jsonString = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
       
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `toeslagtabel-${tabel.jaar}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
       toaster.create({
-        title: 'Bestand geladen',
-        description: 'Toeslagtabel data is ingeladen. Controleer de gegevens voordat je opslaat.',
-        status: 'info',
+        title: 'Export gelukt',
+        description: `Toeslagtabel ${tabel.jaar} geëxporteerd naar JSON`,
+        status: 'success',
         duration: 3000,
       });
     } catch (error) {
-      setUploadError('Fout bij lezen van bestand. Controleer of het een geldig JSON bestand is.');
-    }
-  };
-
-  const updateInkomensKlasse = (index: number, field: keyof InkomensKlasse, value: any) => {
-    const newBrackets = [...formData.income_brackets];
-    newBrackets[index] = { ...newBrackets[index], [field]: value };
-    setFormData({ ...formData, income_brackets: newBrackets });
-  };
-
-  const addInkomensKlasse = () => {
-    const newBrackets = [...formData.income_brackets];
-    newBrackets.push({ min: 0, max: null, perc_first_child: 0, perc_other_children: 0 });
-    setFormData({ ...formData, income_brackets: newBrackets });
-  };
-
-  const removeInkomensKlasse = (index: number) => {
-    const newBrackets = formData.income_brackets.filter((_, i) => i !== index);
-    setFormData({ ...formData, income_brackets: newBrackets });
-  };
-
-  const exportTabel = (tabel: Toeslagtabel) => {
-    try {
-      const data = JSON.parse(tabel.data);
-      const dataStr = JSON.stringify(data, null, 2);
-      const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-      
-      const exportFileDefaultName = `toeslagtabel_${tabel.jaar}.json`;
-      
-      const linkElement = document.createElement('a');
-      linkElement.setAttribute('href', dataUri);
-      linkElement.setAttribute('download', exportFileDefaultName);
-      linkElement.click();
-    } catch (error) {
       toaster.create({
-        title: 'Fout',
-        description: 'Kon toeslagtabel niet exporteren',
+        title: 'Export fout',
+        description: 'Kon toeslagtabel niet exporteren naar JSON',
         status: 'error',
         duration: 3000,
       });
+    }
+  };
+
+  const exportAllToJSON = () => {
+    try {
+      const exportData = toeslagtabellen.map(tabel => {
+        try {
+          const parsedData = JSON.parse(tabel.data);
+          return {
+            jaar: tabel.jaar,
+            actief: tabel.actief,
+            created_at: tabel.created_at,
+            updated_at: tabel.updated_at,
+            ...parsedData
+          };
+        } catch {
+          return {
+            jaar: tabel.jaar,
+            actief: tabel.actief,
+            created_at: tabel.created_at,
+            updated_at: tabel.updated_at,
+            data: tabel.data
+          };
+        }
+      });
+
+      const jsonString = JSON.stringify({
+        export_date: new Date().toISOString(),
+        tabellen: exportData
+      }, null, 2);
+      
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `alle-toeslagtabellen-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toaster.create({
+        title: 'Export gelukt',
+        description: `${toeslagtabellen.length} toeslagtabellen geëxporteerd naar JSON`,
+        status: 'success',
+        duration: 3000,
+      });
+    } catch (error) {
+      toaster.create({
+        title: 'Export fout',
+        description: 'Kon toeslagtabellen niet exporteren naar JSON',
+        status: 'error',
+        duration: 3000,
+      });
+    }
+  };
+
+  const handleImportJSON = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const importedData = JSON.parse(text);
+
+      // Check of het een enkele tabel of meerdere tabellen betreft
+      if (importedData.tabellen && Array.isArray(importedData.tabellen)) {
+        // Multiple tables import
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const tabelData of importedData.tabellen) {
+          try {
+            await importSingleTable(tabelData);
+            successCount++;
+          } catch (error) {
+            errorCount++;
+            console.error(`Fout bij importeren tabel ${tabelData.jaar}:`, error);
+          }
+        }
+
+        toaster.create({
+          title: 'Import voltooid',
+          description: `${successCount} tabellen geïmporteerd, ${errorCount} fouten`,
+          status: successCount > 0 ? 'success' : 'error',
+          duration: 5000,
+        });
+      } else {
+        // Single table import
+        await importSingleTable(importedData);
+        toaster.create({
+          title: 'Import gelukt',
+          description: `Toeslagtabel ${importedData.jaar} geïmporteerd`,
+          status: 'success',
+          duration: 3000,
+        });
+      }
+
+      loadToeslagtabellen();
+    } catch (error) {
+      toaster.create({
+        title: 'Import fout',
+        description: 'Ongeldig JSON bestand of fout bij importeren',
+        status: 'error',
+        duration: 5000,
+      });
+    }
+
+    // Reset file input
+    event.target.value = '';
+  };
+
+  const importSingleTable = async (tabelData: any) => {
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5007';
+    const token = localStorage.getItem('token');
+
+    // Validate required fields
+    if (!tabelData.jaar || typeof tabelData.jaar !== 'number') {
+      throw new Error('Ongeldig jaartal in JSON data');
+    }
+
+    // Prepare data for API
+    let dataToSend;
+    if (tabelData.data && typeof tabelData.data === 'string') {
+      // Data is already a JSON string
+      dataToSend = {
+        jaar: tabelData.jaar,
+        data: JSON.parse(tabelData.data),
+        actief: tabelData.actief || false
+      };
+    } else {
+      // Extract the table structure from the imported data
+      const { jaar, actief, created_at, updated_at, ...tableStructure } = tabelData;
+      dataToSend = {
+        jaar: jaar,
+        data: tableStructure,
+        actief: actief || false
+      };
+    }
+
+    // Check if table already exists and ask for confirmation
+    const existingTable = toeslagtabellen.find(t => t.jaar === tabelData.jaar);
+    if (existingTable) {
+      const confirmed = window.confirm(
+        `Toeslagtabel voor jaar ${tabelData.jaar} bestaat al. Wilt u deze overschrijven?`
+      );
+      if (!confirmed) {
+        throw new Error(`Import geannuleerd voor jaar ${tabelData.jaar}`);
+      }
+    }
+
+    const method = existingTable ? 'PUT' : 'POST';
+    const url = existingTable 
+      ? `${apiUrl}/api/toeslagtabellen/${tabelData.jaar}`
+      : `${apiUrl}/api/toeslagtabellen`;
+
+    const response = await fetch(url, {
+      method,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(dataToSend)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || `HTTP ${response.status}`);
+    }
+
+    const result = await response.json();
+    if (!result.success) {
+      throw new Error(result.error || 'Onbekende fout bij opslaan');
     }
   };
 
@@ -334,181 +451,26 @@ const ToeslagtabelBeheerPage: React.FC = () => {
     );
   }
 
-  return (
-    <Box p={6}>
-      <VStack align="stretch" gap={6}>
-        <Box>
-          <HStack justifyContent="space-between" mb={4}>
+  if (showForm) {
+    return (
+      <Box p={6}>
+        <VStack align="stretch" gap={6}>
+          <HStack justifyContent="space-between">
             <Text fontSize="2xl" fontWeight="bold">
-              🏛️ Toeslagtabel Beheer
+              {editingTabel ? 'Toeslagtabel Bewerken' : 'Nieuwe Toeslagtabel'}
             </Text>
-            <HStack gap={2}>
-              <Button
-                leftIcon={<Upload size={16} />}
-                onClick={() => setShowUploadModal(true)}
-                colorScheme="blue"
-                variant="outline"
-              >
-                Upload JSON
-              </Button>
-              <Button
-                leftIcon={<Text fontSize="xl">➕</Text>}
-                onClick={handleNewTabel}
-                colorScheme="green"
-              >
-                Nieuwe Toeslagtabel
-              </Button>
-            </HStack>
+            <Button onClick={() => setShowForm(false)}>Terug</Button>
           </HStack>
 
-          {toeslagtabellen.length === 0 ? (
-            <Alert status="info">
-              <AlertIcon />
-              <AlertTitle>Geen toeslagtabellen!</AlertTitle>
-              <AlertDescription>
-                Er zijn nog geen toeslagtabellen aangemaakt. Maak er een aan om te beginnen.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <Table variant="simple">
-              <Thead>
-                <Tr>
-                  <Th>Jaar</Th>
-                  <Th>Status</Th>
-                  <Th>Inkomensklassen</Th>
-                  <Th>Max Tarieven</Th>
-                  <Th>Laatst Bijgewerkt</Th>
-                  <Th>Acties</Th>
-                </Tr>
-              </Thead>
-              <Tbody>
-                {toeslagtabellen.map((tabel) => {
-                  let parsedData: ToeslagtabelData | null = null;
-                  try {
-                    parsedData = JSON.parse(tabel.data);
-                  } catch {}
-
-                  return (
-                    <Tr key={tabel.jaar}>
-                      <Td>
-                        <Text fontWeight="bold">{tabel.jaar}</Text>
-                      </Td>
-                      <Td>
-                        <Badge colorScheme={tabel.actief ? 'green' : 'gray'}>
-                          {tabel.actief ? 'Actief' : 'Inactief'}
-                        </Badge>
-                      </Td>
-                      <Td>
-                        {parsedData ? `${parsedData.income_brackets.length} klassen` : 'Onbekend'}
-                      </Td>
-                      <Td>
-                        {parsedData ? (
-                          <VStack align="start" gap={0} fontSize="sm">
-                            <Text>KDV: €{parsedData.max_hourly_rates.dagopvang}</Text>
-                            <Text>BSO: €{parsedData.max_hourly_rates.bso}</Text>
-                            <Text>Gastouder: €{parsedData.max_hourly_rates.gastouder}</Text>
-                          </VStack>
-                        ) : 'Onbekend'}
-                      </Td>
-                      <Td>
-                        <Text fontSize="sm">
-                          {new Date(tabel.updated_at).toLocaleDateString('nl-NL')}
-                        </Text>
-                      </Td>
-                      <Td>
-                        <HStack gap={2}>
-                          <IconButton
-                            aria-label="Bewerken"
-                            icon={<Edit size={16} />}
-                            size="sm"
-                            onClick={() => handleEditTabel(tabel)}
-                          />
-                          <IconButton
-                            aria-label="Exporteren"
-                            icon={<Download size={16} />}
-                            size="sm"
-                            onClick={() => exportTabel(tabel)}
-                          />
-                          <IconButton
-                            aria-label="Verwijderen"
-                            icon={<Trash2 size={16} />}
-                            size="sm"
-                            colorScheme="red"
-                            onClick={() => handleDeleteTabel(tabel.jaar)}
-                          />
-                        </HStack>
-                      </Td>
-                    </Tr>
-                  );
-                })}
-              </Tbody>
-            </Table>
-          )}
-        </Box>
-      </VStack>
-
-      {/* Upload Modal */}
-      <Modal isOpen={showUploadModal} onClose={() => setShowUploadModal(false)}>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Toeslagtabel Uploaden</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack gap={4} align="stretch">
-              <Text>
-                Upload een JSON bestand met toeslagtabel data. Het bestand moet de volgende structuur hebben:
-              </Text>
-              <Box bg="gray.50" p={3} borderRadius="md" fontSize="sm">
-                <Text fontFamily="mono">
-                  {`{
-  "year": 2024,
-  "income_brackets": [...],
-  "max_hourly_rates": {...}
-}`}
+          <Box bg="white" p={6} borderRadius="lg" shadow="sm">
+            <VStack gap={6} align="stretch">
+              <Box bg="green.50" p={3} borderRadius="md" border="1px solid" borderColor="green.200">
+                <Text fontSize="sm" color="green.800">
+                  💾 <strong>JSON Export/Import:</strong> U kunt deze toeslagtabel exporteren naar JSON om hem te gebruiken voor andere jaren. 
+                  Gebruik "Preview JSON" om de huidige waarden te exporteren of "Export JSON" om de opgeslagen versie te downloaden.
                 </Text>
               </Box>
-              
-              <Input
-                type="file"
-                accept=".json"
-                onChange={(e) => handleFileUpload(e.target.files)}
-                display="none"
-                id="file-upload"
-              />
-              <Button
-                as="label"
-                htmlFor="file-upload"
-                variant="outline"
-                cursor="pointer"
-              >
-                <Upload size={16} />
-                Bestand Selecteren
-              </Button>
 
-              {uploadError && (
-                <Alert status="error">
-                  <AlertIcon />
-                  <AlertDescription>{uploadError}</AlertDescription>
-                </Alert>
-              )}
-            </VStack>
-          </ModalBody>
-          <ModalFooter>
-            <Button onClick={() => setShowUploadModal(false)}>Sluiten</Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* Edit/Create Modal */}
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} size="6xl">
-        <ModalOverlay />
-        <ModalContent maxW="90vw">
-          <ModalHeader>
-            {editingTabel ? `Toeslagtabel ${editingTabel.jaar} Bewerken` : 'Nieuwe Toeslagtabel'}
-          </ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <VStack gap={6} align="stretch">
               {/* Jaar */}
               <Box>
                 <Text mb={2} fontWeight="medium">Jaar</Text>
@@ -523,133 +485,311 @@ const ToeslagtabelBeheerPage: React.FC = () => {
               {/* Max Hourly Rates */}
               <Box>
                 <Text mb={4} fontWeight="medium" fontSize="lg">Maximum Uurtarieven</Text>
-                <HStack gap={4}>
-                  <Box>
-                    <Text mb={2}>Dagopvang (KDV)</Text>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={formData.max_hourly_rates.dagopvang}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        max_hourly_rates: {
-                          ...formData.max_hourly_rates,
-                          dagopvang: parseFloat(e.target.value) || 0
-                        }
-                      })}
-                    />
-                  </Box>
-                  <Box>
-                    <Text mb={2}>Buitenschoolse opvang (BSO)</Text>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={formData.max_hourly_rates.bso}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        max_hourly_rates: {
-                          ...formData.max_hourly_rates,
-                          bso: parseFloat(e.target.value) || 0
-                        }
-                      })}
-                    />
-                  </Box>
-                  <Box>
-                    <Text mb={2}>Gastouderopvang</Text>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={formData.max_hourly_rates.gastouder}
-                      onChange={(e) => setFormData({
-                        ...formData,
-                        max_hourly_rates: {
-                          ...formData.max_hourly_rates,
-                          gastouder: parseFloat(e.target.value) || 0
-                        }
-                      })}
-                    />
-                  </Box>
-                </HStack>
+                <VStack gap={4}>
+                  <HStack gap={4} w="full">
+                    <Box flex={1}>
+                      <Text mb={2}>Dagopvang (KDV)</Text>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={formData.max_hourly_rates.dagopvang}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          max_hourly_rates: {
+                            ...formData.max_hourly_rates,
+                            dagopvang: parseFloat(e.target.value) || 0
+                          }
+                        })}
+                      />
+                    </Box>
+                    <Box flex={1}>
+                      <Text mb={2}>BSO</Text>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={formData.max_hourly_rates.bso}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          max_hourly_rates: {
+                            ...formData.max_hourly_rates,
+                            bso: parseFloat(e.target.value) || 0
+                          }
+                        })}
+                      />
+                    </Box>
+                    <Box flex={1}>
+                      <Text mb={2}>Gastouderopvang</Text>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={formData.max_hourly_rates.gastouder}
+                        onChange={(e) => setFormData({
+                          ...formData,
+                          max_hourly_rates: {
+                            ...formData.max_hourly_rates,
+                            gastouder: parseFloat(e.target.value) || 0
+                          }
+                        })}
+                      />
+                    </Box>
+                  </HStack>
+                </VStack>
               </Box>
 
               {/* Income Brackets */}
               <Box>
-                <HStack justifyContent="space-between" mb={4}>
-                  <Text fontWeight="medium" fontSize="lg">Inkomensklassen</Text>
-                  <Button size="sm" onClick={addInkomensKlasse}>
+                <Text fontWeight="medium" fontSize="lg" mb={4}>Inkomensklassen</Text>
+                <VStack gap={4}>
+                  {formData.income_brackets.map((bracket, index) => (
+                    <HStack key={index} gap={4} w="full">
+                      <Box flex={1}>
+                        <Text mb={1} fontSize="sm">Min inkomen</Text>
+                        <Input
+                          type="number"
+                          value={bracket.min}
+                          onChange={(e) => {
+                            const newBrackets = [...formData.income_brackets];
+                            newBrackets[index] = { ...newBrackets[index], min: parseInt(e.target.value) || 0 };
+                            setFormData({ ...formData, income_brackets: newBrackets });
+                          }}
+                        />
+                      </Box>
+                      <Box flex={1}>
+                        <Text mb={1} fontSize="sm">Max inkomen</Text>
+                        <Input
+                          type="number"
+                          value={bracket.max || ''}
+                          placeholder="Geen maximum"
+                          onChange={(e) => {
+                            const newBrackets = [...formData.income_brackets];
+                            newBrackets[index] = { 
+                              ...newBrackets[index], 
+                              max: e.target.value ? parseInt(e.target.value) : null 
+                            };
+                            setFormData({ ...formData, income_brackets: newBrackets });
+                          }}
+                        />
+                      </Box>
+                      <Box flex={1}>
+                        <Text mb={1} fontSize="sm">% Eerste kind</Text>
+                        <Input
+                          type="number"
+                          value={bracket.perc_first_child}
+                          onChange={(e) => {
+                            const newBrackets = [...formData.income_brackets];
+                            newBrackets[index] = { 
+                              ...newBrackets[index], 
+                              perc_first_child: parseInt(e.target.value) || 0 
+                            };
+                            setFormData({ ...formData, income_brackets: newBrackets });
+                          }}
+                        />
+                      </Box>
+                      <Box flex={1}>
+                        <Text mb={1} fontSize="sm">% Volgende kinderen</Text>
+                        <Input
+                          type="number"
+                          value={bracket.perc_other_children}
+                          onChange={(e) => {
+                            const newBrackets = [...formData.income_brackets];
+                            newBrackets[index] = { 
+                              ...newBrackets[index], 
+                              perc_other_children: parseInt(e.target.value) || 0 
+                            };
+                            setFormData({ ...formData, income_brackets: newBrackets });
+                          }}
+                        />
+                      </Box>
+                      <Button
+                        colorScheme="red"
+                        size="sm"
+                        onClick={() => {
+                          const newBrackets = formData.income_brackets.filter((_, i) => i !== index);
+                          setFormData({ ...formData, income_brackets: newBrackets });
+                        }}
+                        disabled={formData.income_brackets.length <= 1}
+                      >
+                        ✕
+                      </Button>
+                    </HStack>
+                  ))}
+                  
+                  <Button
+                    onClick={() => {
+                      const newBrackets = [...formData.income_brackets];
+                      newBrackets.push({ min: 0, max: null, perc_first_child: 0, perc_other_children: 0 });
+                      setFormData({ ...formData, income_brackets: newBrackets });
+                    }}
+                    size="sm"
+                  >
                     ➕ Klasse Toevoegen
                   </Button>
-                </HStack>
-
-                <Table variant="simple">
-                  <Thead>
-                    <Tr>
-                      <Th>Min Inkomen</Th>
-                      <Th>Max Inkomen</Th>
-                      <Th>% Eerste Kind</Th>
-                      <Th>% Volgende Kinderen</Th>
-                      <Th>Acties</Th>
-                    </Tr>
-                  </Thead>
-                  <Tbody>
-                    {formData.income_brackets.map((bracket, index) => (
-                      <Tr key={index}>
-                        <Td>
-                          <Input
-                            type="number"
-                            value={bracket.min}
-                            onChange={(e) => updateInkomensKlasse(index, 'min', parseInt(e.target.value) || 0)}
-                          />
-                        </Td>
-                        <Td>
-                          <Input
-                            type="number"
-                            value={bracket.max || ''}
-                            placeholder="Geen maximum"
-                            onChange={(e) => updateInkomensKlasse(index, 'max', e.target.value ? parseInt(e.target.value) : null)}
-                          />
-                        </Td>
-                        <Td>
-                          <Input
-                            type="number"
-                            value={bracket.perc_first_child}
-                            onChange={(e) => updateInkomensKlasse(index, 'perc_first_child', parseInt(e.target.value) || 0)}
-                          />
-                        </Td>
-                        <Td>
-                          <Input
-                            type="number"
-                            value={bracket.perc_other_children}
-                            onChange={(e) => updateInkomensKlasse(index, 'perc_other_children', parseInt(e.target.value) || 0)}
-                          />
-                        </Td>
-                        <Td>
-                          <IconButton
-                            aria-label="Verwijderen"
-                            icon={<Trash2 size={16} />}
-                            size="sm"
-                            colorScheme="red"
-                            onClick={() => removeInkomensKlasse(index)}
-                            isDisabled={formData.income_brackets.length <= 1}
-                          />
-                        </Td>
-                      </Tr>
-                    ))}
-                  </Tbody>
-                </Table>
+                </VStack>
               </Box>
+
+              <HStack gap={3}>
+                <Button onClick={() => setShowForm(false)}>Annuleren</Button>
+                {editingTabel && (
+                  <Button 
+                    colorScheme="cyan" 
+                    variant="outline"
+                    onClick={() => exportToJSON(editingTabel)}
+                  >
+                    📤 Export JSON
+                  </Button>
+                )}
+                <Button
+                  colorScheme="purple"
+                  variant="outline"
+                  onClick={() => {
+                    const previewData = {
+                      jaar: formData.year,
+                      actief: true,
+                      data: JSON.stringify(formData),
+                      created_at: new Date().toISOString(),
+                      updated_at: new Date().toISOString()
+                    };
+                    exportToJSON(previewData as Toeslagtabel);
+                  }}
+                >
+                  📥 Preview JSON
+                </Button>
+                <Button colorScheme="blue" onClick={handleSaveTabel}>
+                  {editingTabel ? 'Bijwerken' : 'Aanmaken'}
+                </Button>
+              </HStack>
             </VStack>
-          </ModalBody>
-          <ModalFooter>
+          </Box>
+        </VStack>
+      </Box>
+    );
+  }
+
+  return (
+    <Box p={6}>
+      <VStack align="stretch" gap={6}>
+        <Box>
+          <HStack justifyContent="space-between" mb={4}>
+            <Text fontSize="2xl" fontWeight="bold">
+              🏛️ Toeslagtabel Beheer
+            </Text>
             <HStack gap={3}>
-              <Button onClick={() => setShowModal(false)}>Annuleren</Button>
-              <Button colorScheme="blue" onClick={handleSaveTabel}>
-                {editingTabel ? 'Bijwerken' : 'Aanmaken'}
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleImportJSON}
+                style={{ display: 'none' }}
+                id="json-import-input"
+              />
+              <Button
+                onClick={() => document.getElementById('json-import-input')?.click()}
+                colorScheme="blue"
+                variant="outline"
+              >
+                📁 Import JSON
+              </Button>
+              {toeslagtabellen.length > 0 && (
+                <Button
+                  onClick={exportAllToJSON}
+                  colorScheme="purple"
+                  variant="outline"
+                >
+                  📥 Export Alle Tabellen
+                </Button>
+              )}
+              <Button
+                onClick={handleNewTabel}
+                colorScheme="green"
+              >
+                ➕ Nieuwe Toeslagtabel
               </Button>
             </HStack>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+          </HStack>
+
+          {toeslagtabellen.length > 0 && (
+            <Box bg="blue.50" p={3} borderRadius="md" border="1px solid" borderColor="blue.200" mb={4}>
+              <Text fontSize="sm" color="blue.800">
+                💡 <strong>JSON Export/Import:</strong> Exporteer toeslagtabellen naar JSON voor backup of om ze aan te passen voor andere jaren. 
+                Je kunt einzelne tabellen of alle tabellen tegelijk exporteren en importeren.
+              </Text>
+            </Box>
+          )}
+
+          {toeslagtabellen.length === 0 ? (
+            <Box bg="blue.50" p={4} borderRadius="md" border="1px solid" borderColor="blue.200">
+              <Text fontWeight="bold" color="blue.800" mb={2}>Geen toeslagtabellen!</Text>
+              <Text color="blue.700">
+                Er zijn nog geen toeslagtabellen aangemaakt. Maak er een aan om te beginnen.
+              </Text>
+            </Box>
+          ) : (
+            <VStack gap={4} align="stretch">
+              {toeslagtabellen.map((tabel) => {
+                let parsedData: ToeslagtabelData | null = null;
+                try {
+                  parsedData = JSON.parse(tabel.data);
+                } catch {}
+
+                return (
+                  <Box key={tabel.jaar} bg="white" p={4} borderRadius="lg" shadow="sm" border="1px solid" borderColor="gray.200">
+                    <HStack justifyContent="space-between" align="start">
+                      <VStack align="start" gap={2}>
+                        <HStack gap={3}>
+                          <Text fontSize="xl" fontWeight="bold">Jaar {tabel.jaar}</Text>
+                          <Badge colorScheme={tabel.actief ? 'green' : 'gray'}>
+                            {tabel.actief ? 'Actief' : 'Inactief'}
+                          </Badge>
+                        </HStack>
+                        
+                        <HStack gap={6} fontSize="sm" color="gray.600">
+                          <Text>
+                            <strong>Inkomensklassen:</strong> {parsedData ? parsedData.income_brackets.length : 'Onbekend'}
+                          </Text>
+                          <Text>
+                            <strong>Laatst bijgewerkt:</strong> {new Date(tabel.updated_at).toLocaleDateString('nl-NL')}
+                          </Text>
+                        </HStack>
+
+                        {parsedData && (
+                          <HStack gap={4} fontSize="sm">
+                            <Text>KDV: €{parsedData.max_hourly_rates.dagopvang}</Text>
+                            <Text>BSO: €{parsedData.max_hourly_rates.bso}</Text>
+                            <Text>Gastouder: €{parsedData.max_hourly_rates.gastouder}</Text>
+                          </HStack>
+                        )}
+                      </VStack>
+
+                      <HStack gap={2}>
+                        <Button
+                          size="sm"
+                          colorScheme="cyan"
+                          variant="outline"
+                          onClick={() => exportToJSON(tabel)}
+                        >
+                          📤 JSON
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleEditTabel(tabel)}
+                        >
+                          Bewerken
+                        </Button>
+                        <Button
+                          size="sm"
+                          colorScheme="red"
+                          onClick={() => handleDeleteTabel(tabel.jaar)}
+                        >
+                          Verwijderen
+                        </Button>
+                      </HStack>
+                    </HStack>
+                  </Box>
+                );
+              })}
+            </VStack>
+          )}
+        </Box>
+      </VStack>
     </Box>
   );
 };

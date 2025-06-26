@@ -9,6 +9,8 @@ interface Organisatie {
   actief_toeslagjaar?: number;
   gemeente_toeslag_percentage?: number;
   gemeente_toeslag_actief?: boolean;
+  standaard_inkomensklasse?: string;
+  toeslag_automatisch_berekenen?: boolean;
 }
 
 interface Opvangvorm {
@@ -88,8 +90,7 @@ const RekentoolPage: React.FC = () => {
     dagen_per_week: 4
   });
   
-  const [geselecteerdeInkomensklasse, setGeselecteerdeInkomensklasse] = useState<string>('');
-  const [toeslagBerekening, setToeslagBerekening] = useState<boolean>(true);
+  // Toeslagberekening wordt nu automatisch bepaald door organisatie instellingen
   
   // Resultaat
   const [resultaat, setResultaat] = useState<{
@@ -184,10 +185,7 @@ const RekentoolPage: React.FC = () => {
       return;
     }
 
-    if (toeslagBerekening && !geselecteerdeInkomensklasse) {
-      setError('Selecteer uw inkomenscategorie voor toeslagberekening');
-      return;
-    }
+    // Geen validatie meer nodig voor inkomensklasse - wordt automatisch bepaald
 
     setBerekening(true);
     setError(null);
@@ -237,13 +235,27 @@ const RekentoolPage: React.FC = () => {
         berekening_details = `${Math.round(gefactureerde_uren)} uren × €${config.uurtarief}/uur (max ${Math.round(max_uren)} uren)`;
       }
 
-      // Voor nu simuleren we de toeslag berekening
+      // Automatische toeslag berekening op basis van organisatie instellingen
       let toeslagResultaat: ToeslagResultaat | undefined;
 
-      if (toeslagBerekening && organisatie?.actief_toeslagjaar && geselecteerdeInkomensklasse) {
+      if (organisatie?.toeslag_automatisch_berekenen !== false && organisatie?.actief_toeslagjaar) {
         try {
-          const geselecteerdeKlasse = inkomensklassen.find(k => k.id.toString() === geselecteerdeInkomensklasse);
-          if (geselecteerdeKlasse) {
+          let standaardKlasse: Inkomensklasse | undefined;
+          
+          // Gebruik standaard inkomensklasse van organisatie, anders fallback naar eerste klasse
+          if (organisatie.standaard_inkomensklasse) {
+            try {
+              standaardKlasse = JSON.parse(organisatie.standaard_inkomensklasse);
+            } catch {
+              // Als parsing faalt, gebruik eerste beschikbare klasse
+              standaardKlasse = inkomensklassen[0];
+            }
+          } else {
+            // Geen standaard ingesteld, gebruik eerste klasse als fallback
+            standaardKlasse = inkomensklassen[0];
+          }
+          
+          if (standaardKlasse) {
             const opvangvormNaam = geselecteerdeOpvangvorm?.naam || '';
             const toeslagType = mapOpvangvormNaarToeslagType(opvangvormNaam);
             
@@ -252,7 +264,7 @@ const RekentoolPage: React.FC = () => {
               actief_toeslagjaar: organisatie.actief_toeslagjaar,
               gemeente_toeslag_percentage: organisatie.gemeente_toeslag_percentage || 0,
               gemeente_toeslag_actief: organisatie.gemeente_toeslag_actief || false,
-              gezinsinkomen: (geselecteerdeKlasse.min + (geselecteerdeKlasse.max || geselecteerdeKlasse.min)) / 2, // Gebruik midden van bracket
+              gezinsinkomen: (standaardKlasse.min + (standaardKlasse.max || standaardKlasse.min)) / 2, // Gebruik midden van bracket
               kinderen: [{
                 opvangvorm: toeslagType,
                 uren_per_maand: kind.uren_per_week * 4.33,
@@ -277,10 +289,21 @@ const RekentoolPage: React.FC = () => {
           }
         } catch (toeslagError) {
           console.error('Fout bij toeslagberekening:', toeslagError);
-          // Fallback naar oude simulatie indien API faalt
-          const geselecteerdeKlasse = inkomensklassen.find(k => k.id.toString() === geselecteerdeInkomensklasse);
-          if (geselecteerdeKlasse) {
-            const landelijkeToeslag = brutokosten * (geselecteerdeKlasse.perc_first_child / 100);
+          // Fallback naar lokale simulatie indien API faalt
+          let standaardKlasseFallback: Inkomensklasse | undefined;
+          
+          if (organisatie.standaard_inkomensklasse) {
+            try {
+              standaardKlasseFallback = JSON.parse(organisatie.standaard_inkomensklasse);
+            } catch {
+              standaardKlasseFallback = inkomensklassen[0];
+            }
+          } else {
+            standaardKlasseFallback = inkomensklassen[0];
+          }
+          
+          if (standaardKlasseFallback) {
+            const landelijkeToeslag = brutokosten * (standaardKlasseFallback.perc_first_child / 100);
             const gemeentelijkeToeslag = organisatie.gemeente_toeslag_actief 
               ? brutokosten * ((organisatie.gemeente_toeslag_percentage || 0) / 100)
               : 0;
@@ -476,75 +499,36 @@ const RekentoolPage: React.FC = () => {
               </Box>
             </HStack>
 
-            {/* Kinderopvangtoeslag sectie */}
-            {organisatie.actief_toeslagjaar && inkomensklassen.length > 0 && (
-              <>
-                <Box borderTop="1px solid" borderColor="gray.200" pt={6}>
-                  <Text fontSize="lg" fontWeight="bold" mb={4}>
-                    🏛️ Kinderopvangtoeslag ({organisatie.actief_toeslagjaar})
-                  </Text>
-                  
-                  <VStack gap={4} align="stretch">
-                    <Box>
-                      <HStack mb={2}>
-                        <input
-                          type="checkbox"
-                          checked={toeslagBerekening}
-                          onChange={(e) => {
-                            setToeslagBerekening(e.target.checked);
-                            setResultaat(null);
-                          }}
-                        />
-                        <Text fontWeight="medium">Kinderopvangtoeslag berekenen</Text>
-                      </HStack>
-                      <Text fontSize="sm" color="gray.600">
-                        Vink aan om uw netto kosten te berekenen inclusief kinderopvangtoeslag
-                      </Text>
-                    </Box>
-
-                    {toeslagBerekening && (
-                      <Box>
-                        <Text mb={2} fontWeight="medium">Gezamenlijk bruto jaarinkomen *</Text>
-                        <select
-                          value={geselecteerdeInkomensklasse}
-                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                            setGeselecteerdeInkomensklasse(e.target.value);
-                            setResultaat(null);
-                          }}
-                          style={{
-                            width: '100%',
-                            padding: '0.5rem',
-                            border: '1px solid #E2E8F0',
-                            borderRadius: '6px',
-                            backgroundColor: 'white'
-                          }}
-                        >
-                          <option value="">Selecteer uw inkomenscategorie</option>
-                          {inkomensklassen.map((klasse) => (
-                            <option key={klasse.id} value={klasse.id}>
-                              {klasse.label} ({klasse.perc_first_child}% toeslag)
-                            </option>
-                          ))}
-                        </select>
-                        <Text fontSize="xs" color="gray.500" mt={1}>
-                          Dit is een schatting. Voor de definitieve toeslag dient u een aanvraag in bij de Belastingdienst.
-                        </Text>
-                      </Box>
-                    )}
-
-                    {organisatie.gemeente_toeslag_actief && (
-                      <Box bg="blue.50" p={3} borderRadius="md">
-                        <Text fontSize="sm" fontWeight="medium" color="blue.800">
-                          💡 Gemeentelijke toeslag
-                        </Text>
-                        <Text fontSize="sm" color="blue.700">
-                          Deze organisatie biedt een extra gemeentelijke toeslag van {organisatie.gemeente_toeslag_percentage}%
-                        </Text>
-                      </Box>
-                    )}
-                  </VStack>
-                </Box>
-              </>
+            {/* Automatische kinderopvangtoeslag info */}
+            {organisatie.toeslag_automatisch_berekenen !== false && organisatie.actief_toeslagjaar && (
+              <Box bg="blue.50" p={4} borderRadius="md" border="1px solid" borderColor="blue.200">
+                <Text fontWeight="bold" color="blue.800" mb={2}>
+                  🏛️ Kinderopvangtoeslag inbegrepen ({organisatie.actief_toeslagjaar})
+                </Text>
+                <Text fontSize="sm" color="blue.700">
+                  Uw berekening bevat automatisch een schatting van de kinderopvangtoeslag. 
+                  Voor de definitieve toeslag dient u een aanvraag in bij de Belastingdienst.
+                  {organisatie.standaard_inkomensklasse && (() => {
+                    try {
+                      const klasse = JSON.parse(organisatie.standaard_inkomensklasse);
+                      return (
+                        <span>
+                          <br />
+                          <strong>Gebruikt voor berekening:</strong> {klasse.label}
+                        </span>
+                      );
+                    } catch {
+                      return null;
+                    }
+                  })()}
+                  {organisatie.gemeente_toeslag_actief && (
+                    <span>
+                      <br />
+                      <strong>Gemeentelijke toeslag:</strong> {organisatie.gemeente_toeslag_percentage}% extra
+                    </span>
+                  )}
+                </Text>
+              </Box>
             )}
 
             <Button

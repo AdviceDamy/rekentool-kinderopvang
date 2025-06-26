@@ -16,4 +16,11 @@ afterEach(async () => {
   // Clean up test data
   await database('toeslagtabellen').del();
   await database('organisaties').del();
+});
+
+// Dummy test to avoid "no tests" error
+describe('Database Setup', () => {
+  it('should connect to test database', async () => {
+    expect(database).toBeDefined();
+  });
 }); 

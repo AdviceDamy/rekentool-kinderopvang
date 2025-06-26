@@ -19,11 +19,18 @@ describe('ToeslagController API', () => {
   });
 
   beforeEach(async () => {
-    // Insert test organisatie
-    const organisatieResult = await database('organisaties').insert({
+    // Insert test organisatie with proper structure
+    await database('organisaties').insert({
+      id: 1,
       naam: 'Test Organisatie',
       email: 'test@example.com',
-      actief: true
+      slug: 'test-organisatie',
+      actief: true,
+      actief_toeslagjaar: 2024,
+      gemeente_toeslag_percentage: 10,
+      gemeente_toeslag_actief: true,
+      created_at: new Date(),
+      updated_at: new Date()
     });
 
     // Insert test toeslagtabel data
