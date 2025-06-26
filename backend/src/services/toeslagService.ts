@@ -88,7 +88,7 @@ export class ToeslagService {
     });
 
     const totaal_toeslag = totaal_toeslag_landelijk + totaal_toeslag_gemeente;
-    const totaal_nettokosten = totaal_brutokosten - totaal_toeslag;
+    const totaal_nettokosten = Math.max(0, totaal_brutokosten - totaal_toeslag); // Kan niet negatief zijn
 
     return {
       totaal_brutokosten: this.afrondenCenten(totaal_brutokosten),
