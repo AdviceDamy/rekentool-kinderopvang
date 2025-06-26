@@ -372,8 +372,8 @@ const RekentoolWizardPage: React.FC = () => {
         return (
           <VStack gap={6} align="stretch">
             <Box textAlign="center">
-              <HomeIcon style={{ fontSize: 80, color: '#3182CE', marginBottom: '1rem' }} />
-              <Text fontSize="3xl" fontWeight="bold" mb={4} color="blue.600">
+              <HomeIcon style={{ fontSize: 80, color: '#FF6766', marginBottom: '1rem' }} />
+              <Text fontSize="3xl" fontWeight="bold" mb={4} color="#FF6766">
                 Welkom bij de Kostencalculator
               </Text>
               <Text fontSize="xl" color="gray.600" mb={2}>
@@ -386,14 +386,14 @@ const RekentoolWizardPage: React.FC = () => {
             </Box>
             
             {organisatie.toeslag_automatisch_berekenen !== false && organisatie.actief_toeslagjaar && (
-              <Box bg="blue.50" p={4} borderRadius="lg" border="1px solid" borderColor="blue.200">
+              <Box bg="#FFF2F2" p={4} borderRadius="lg" border="1px solid" borderColor="#FFB3B2">
                 <HStack gap={3}>
-                  <CheckCircleIcon style={{ color: '#3182CE' }} />
+                  <CheckCircleIcon style={{ color: '#FF6766' }} />
                   <VStack align="start" gap={1}>
-                    <Text fontWeight="bold" color="blue.800">
+                    <Text fontWeight="bold" color="#CC5251">
                       Kinderopvangtoeslag inbegrepen
                     </Text>
-                    <Text fontSize="sm" color="blue.700">
+                    <Text fontSize="sm" color="#B84544">
                       Uw berekening bevat automatisch een schatting van de kinderopvangtoeslag voor {organisatie.actief_toeslagjaar}
                     </Text>
                   </VStack>
@@ -407,8 +407,8 @@ const RekentoolWizardPage: React.FC = () => {
         return (
           <VStack gap={6} align="stretch">
             <Box textAlign="center">
-              <ChildCareIcon style={{ fontSize: 60, color: '#38A169', marginBottom: '1rem' }} />
-              <Text fontSize="2xl" fontWeight="bold" mb={2} color="green.600">
+              <ChildCareIcon style={{ fontSize: 60, color: '#FF8A89', marginBottom: '1rem' }} />
+              <Text fontSize="2xl" fontWeight="bold" mb={2} color="#FF8A89">
                 Kies uw opvangvorm
               </Text>
               <Text color="gray.600">
@@ -422,10 +422,10 @@ const RekentoolWizardPage: React.FC = () => {
                   key={opvangvorm.id}
                   p={4}
                   border="2px solid"
-                  borderColor={kind.opvangvorm_id === opvangvorm.id.toString() ? 'green.500' : 'gray.200'}
+                  borderColor={kind.opvangvorm_id === opvangvorm.id.toString() ? '#FF8A89' : 'gray.200'}
                   borderRadius="lg"
                   cursor="pointer"
-                  bg={kind.opvangvorm_id === opvangvorm.id.toString() ? 'green.50' : 'white'}
+                  bg={kind.opvangvorm_id === opvangvorm.id.toString() ? '#FFF5F5' : 'white'}
                   onClick={() => {
                     setKind({ 
                       ...kind, 
@@ -434,15 +434,15 @@ const RekentoolWizardPage: React.FC = () => {
                     });
                     setResultaat(null);
                   }}
-                  _hover={{ borderColor: 'green.300', bg: 'green.25' }}
+                  _hover={{ borderColor: '#FFB3B2', bg: '#FFFAFA' }}
                   transition="all 0.2s"
                 >
                   <HStack gap={3}>
                     {kind.opvangvorm_id === opvangvorm.id.toString() && (
-                      <CheckCircleIcon style={{ color: '#38A169' }} />
+                      <CheckCircleIcon style={{ color: '#FF8A89' }} />
                     )}
                     <VStack align="start" gap={1} flex={1}>
-                      <Text fontWeight="bold" color={kind.opvangvorm_id === opvangvorm.id.toString() ? 'green.800' : 'gray.800'}>
+                      <Text fontWeight="bold" color={kind.opvangvorm_id === opvangvorm.id.toString() ? '#CC5251' : 'gray.800'}>
                         {opvangvorm.naam}
                       </Text>
                       {opvangvorm.omschrijving && (
@@ -462,8 +462,8 @@ const RekentoolWizardPage: React.FC = () => {
         return (
           <VStack gap={6} align="stretch">
             <Box textAlign="center">
-              <AttachMoneyIcon style={{ fontSize: 60, color: '#D69E2E', marginBottom: '1rem' }} />
-              <Text fontSize="2xl" fontWeight="bold" mb={2} color="yellow.600">
+              <AttachMoneyIcon style={{ fontSize: 60, color: '#FF9933', marginBottom: '1rem' }} />
+              <Text fontSize="2xl" fontWeight="bold" mb={2} color="#FF9933">
                 Selecteer uw tarief
               </Text>
               <Text color="gray.600">
@@ -477,24 +477,24 @@ const RekentoolWizardPage: React.FC = () => {
                   key={tarief.id}
                   p={4}
                   border="2px solid"
-                  borderColor={kind.tariefId === tarief.id.toString() ? 'yellow.500' : 'gray.200'}
+                  borderColor={kind.tariefId === tarief.id.toString() ? '#FF9933' : 'gray.200'}
                   borderRadius="lg"
                   cursor="pointer"
-                  bg={kind.tariefId === tarief.id.toString() ? 'yellow.50' : 'white'}
+                  bg={kind.tariefId === tarief.id.toString() ? '#FFF8F0' : 'white'}
                   onClick={() => {
                     setKind({ ...kind, tariefId: tarief.id.toString() });
                     setResultaat(null);
                   }}
-                  _hover={{ borderColor: 'yellow.300', bg: 'yellow.25' }}
+                  _hover={{ borderColor: '#FFCC99', bg: '#FFFBF7' }}
                   transition="all 0.2s"
                 >
                   <HStack gap={3} justifyContent="space-between">
                     <HStack gap={3} flex={1}>
                       {kind.tariefId === tarief.id.toString() && (
-                        <CheckCircleIcon style={{ color: '#D69E2E' }} />
+                        <CheckCircleIcon style={{ color: '#FF9933' }} />
                       )}
                       <VStack align="start" gap={1} flex={1}>
-                        <Text fontWeight="bold" color={kind.tariefId === tarief.id.toString() ? 'yellow.800' : 'gray.800'}>
+                        <Text fontWeight="bold" color={kind.tariefId === tarief.id.toString() ? '#CC6600' : 'gray.800'}>
                           {tarief.naam}
                         </Text>
                         <Text fontSize="sm" color="gray.600" textTransform="capitalize">
@@ -502,7 +502,7 @@ const RekentoolWizardPage: React.FC = () => {
                         </Text>
                       </VStack>
                     </HStack>
-                    <Text fontSize="xl" fontWeight="bold" color="yellow.600">
+                    <Text fontSize="xl" fontWeight="bold" color="#FF9933">
                       €{tarief.tarief.toFixed(2)}
                     </Text>
                   </HStack>
@@ -516,8 +516,8 @@ const RekentoolWizardPage: React.FC = () => {
         return (
           <VStack gap={6} align="stretch">
             <Box textAlign="center">
-              <ScheduleIcon style={{ fontSize: 60, color: '#805AD5', marginBottom: '1rem' }} />
-              <Text fontSize="2xl" fontWeight="bold" mb={2} color="purple.600">
+              <ScheduleIcon style={{ fontSize: 60, color: '#D65DB1', marginBottom: '1rem' }} />
+              <Text fontSize="2xl" fontWeight="bold" mb={2} color="#D65DB1">
                 Planning invullen
               </Text>
               <Text color="gray.600">
@@ -575,8 +575,8 @@ const RekentoolWizardPage: React.FC = () => {
         return (
           <VStack gap={6} align="stretch">
             <Box textAlign="center">
-              <AssessmentIcon style={{ fontSize: 60, color: '#E53E3E', marginBottom: '1rem' }} />
-              <Text fontSize="2xl" fontWeight="bold" mb={2} color="red.600">
+              <AssessmentIcon style={{ fontSize: 60, color: '#B8312F', marginBottom: '1rem' }} />
+              <Text fontSize="2xl" fontWeight="bold" mb={2} color="#B8312F">
                 Uw kostenberekening
               </Text>
               <Text color="gray.600">
@@ -597,7 +597,7 @@ const RekentoolWizardPage: React.FC = () => {
                   <Text fontWeight="bold" fontSize="lg" color="gray.800">
                     Brutokosten per maand
                   </Text>
-                  <Text fontSize="2xl" fontWeight="bold" color="blue.600">
+                  <Text fontSize="2xl" fontWeight="bold" color="#FF6766">
                     €{resultaat.brutokosten.toFixed(2)}
                   </Text>
                   <Text fontSize="sm" color="gray.600">
@@ -615,49 +615,49 @@ const RekentoolWizardPage: React.FC = () => {
                     </Text>
 
                     {/* Eindresultaat */}
-                    <Box bg="purple.50" p={6} borderRadius="xl" border="2px solid" borderColor="purple.200">
+                    <Box bg="#FFF2F2" p={6} borderRadius="xl" border="2px solid" borderColor="#FFB3B2">
                       <HStack gap={4} align="center">
                         <Box 
                           minW={12} 
                           h={12} 
-                          bg="purple.100" 
+                          bg="#FFE6E6" 
                           borderRadius="full" 
                           display="flex" 
                           alignItems="center" 
                           justifyContent="center"
                           fontSize="lg"
                           fontWeight="bold"
-                          color="purple.600"
+                          color="#B8312F"
                         >
                           =
                         </Box>
                         <Box flex={1}>
-                          <Text fontSize="xl" fontWeight="bold" color="purple.800">
+                          <Text fontSize="xl" fontWeight="bold" color="#B8312F">
                             Uw netto kosten per maand
                           </Text>
                           <Text fontSize="sm" color="gray.600">
                             Na aftrek van kinderopvangtoeslag
                           </Text>
                         </Box>
-                        <Text fontSize="3xl" fontWeight="bold" color="purple.600">
+                        <Text fontSize="3xl" fontWeight="bold" color="#B8312F">
                           €{resultaat.toeslag.totaal_nettokosten.toFixed(2)}
                         </Text>
                       </HStack>
                     </Box>
 
                     {/* Besparingen */}
-                    <Box bg="green.50" p={4} borderRadius="lg" border="1px solid" borderColor="green.200">
+                    <Box bg="#F0FDF4" p={4} borderRadius="lg" border="1px solid" borderColor="#86EFAC">
                       <HStack gap={4} align="center">
                         <Text fontSize="2xl">💚</Text>
                         <VStack align="start" gap={0} flex={1}>
-                          <Text fontWeight="bold" color="green.800">
+                          <Text fontWeight="bold" color="#15803D">
                             Uw besparing per maand
                           </Text>
-                          <Text fontSize="sm" color="green.700">
+                          <Text fontSize="sm" color="#16A34A">
                             Door kinderopvangtoeslag
                           </Text>
                         </VStack>
-                        <Text fontSize="2xl" fontWeight="bold" color="green.600">
+                        <Text fontSize="2xl" fontWeight="bold" color="#15803D">
                           €{(resultaat.toeslag.totaal_toeslag_landelijk + resultaat.toeslag.totaal_toeslag_gemeente).toFixed(2)}
                         </Text>
                       </HStack>
@@ -698,7 +698,7 @@ const RekentoolWizardPage: React.FC = () => {
           >
             <Box 
               h="full" 
-              bg="blue.500" 
+              bg="#FF6766" 
               borderRadius="full"
               w={`${(currentStep / WIZARD_STEPS.length) * 100}%`}
               transition="width 0.3s ease"
@@ -718,7 +718,7 @@ const RekentoolWizardPage: React.FC = () => {
                     w={12}
                     h={12}
                     borderRadius="full"
-                    bg={isCompleted ? 'green.500' : isActive ? 'blue.500' : 'gray.300'}
+                    bg={isCompleted ? '#4CAF50' : isActive ? '#FF6766' : 'gray.300'}
                     display="flex"
                     alignItems="center"
                     justifyContent="center"
@@ -737,7 +737,7 @@ const RekentoolWizardPage: React.FC = () => {
                     <Text 
                       fontSize="xs" 
                       fontWeight={isActive ? 'bold' : 'medium'}
-                      color={isActive ? 'blue.600' : isCompleted ? 'green.600' : 'gray.500'}
+                      color={isActive ? '#FF6766' : isCompleted ? '#4CAF50' : 'gray.500'}
                     >
                       {step.title}
                     </Text>
@@ -773,7 +773,10 @@ const RekentoolWizardPage: React.FC = () => {
             <Button
               onClick={nextStep}
               disabled={!canGoToNextStep() || currentStep === WIZARD_STEPS.length}
-              colorScheme="blue"
+              bg="#FF6766"
+              color="white"
+              _hover={{ bg: "#E55A59" }}
+              _disabled={{ bg: "gray.300", color: "gray.500" }}
             >
               <HStack gap={2}>
                 <Text>{currentStep === WIZARD_STEPS.length ? 'Voltooid' : 'Volgende'}</Text>
