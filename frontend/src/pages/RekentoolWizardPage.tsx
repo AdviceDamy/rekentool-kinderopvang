@@ -1,15 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Box, Text, Button, Input, VStack, HStack } from '@chakra-ui/react';
-// Material Icons imports
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import {
+  Box,
+  Text,
+  VStack,
+  HStack,
+  Button,
+  Input,
+  SimpleGrid
+} from '@chakra-ui/react';
+
+// Material Icons
 import HomeIcon from '@mui/icons-material/Home';
 import ChildCareIcon from '@mui/icons-material/ChildCare';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import ScheduleIcon from '@mui/icons-material/Schedule';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import FamilyRestroomIcon from '@mui/icons-material/FamilyRestroom';
+import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
+import SaveIcon from '@mui/icons-material/Save';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import StarIcon from '@mui/icons-material/Star';
 
 interface Organisatie {
   id: number;
@@ -47,6 +64,8 @@ interface Inkomensklasse {
 }
 
 interface Kind {
+  id: string; // Unieke ID voor elk kind
+  naam: string; // Naam van het kind (optioneel)
   opvangvorm_id: string;
   tariefId: string;
   uren_per_week: number;
@@ -79,13 +98,27 @@ interface ToeslagResultaat {
   };
 }
 
+interface Scenario {
+  id: string;
+  naam: string;
+  kinderen: Kind[];
+  resultaat: {
+    brutokosten: number;
+    berekening_details: string;
+    toeslag?: ToeslagResultaat;
+  };
+  aangemaakt_op: Date;
+}
+
 // Wizard stappen
 const WIZARD_STEPS = [
   { id: 1, title: 'Welkom', icon: HomeIcon, description: 'Organisatie informatie' },
-  { id: 2, title: 'Opvangvorm', icon: ChildCareIcon, description: 'Kies type opvang' },
-  { id: 3, title: 'Tarief', icon: AttachMoneyIcon, description: 'Selecteer tarief' },
-  { id: 4, title: 'Planning', icon: ScheduleIcon, description: 'Uren en dagen' },
-  { id: 5, title: 'Resultaat', icon: AssessmentIcon, description: 'Kosten berekening' }
+  { id: 2, title: 'Kinderen', icon: FamilyRestroomIcon, description: 'Aantal kinderen' },
+  { id: 3, title: 'Opvangvorm', icon: ChildCareIcon, description: 'Kies type opvang' },
+  { id: 4, title: 'Tarief', icon: AttachMoneyIcon, description: 'Selecteer tarief' },
+  { id: 5, title: 'Planning', icon: ScheduleIcon, description: 'Uren en dagen' },
+  { id: 6, title: 'Resultaat', icon: AssessmentIcon, description: 'Kosten berekening' },
+  { id: 7, title: 'Vergelijken', icon: CompareArrowsIcon, description: 'Scenario vergelijking' }
 ];
 
 const RekentoolWizardPage: React.FC = () => {
@@ -103,20 +136,105 @@ const RekentoolWizardPage: React.FC = () => {
   const [berekening, setBerekening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Form state
-  const [kind, setKind] = useState<Kind>({
+  // Form state - meerdere kinderen
+  const [kinderen, setKinderen] = useState<Kind[]>([{
+    id: '1',
+    naam: 'Kind 1',
     opvangvorm_id: '',
     tariefId: '',
     uren_per_week: 32,
     dagen_per_week: 4
-  });
+  }]);
+  const [currentChildIndex, setCurrentChildIndex] = useState(0);
   
-  // Resultaat
+  // Resultaat voor alle kinderen
   const [resultaat, setResultaat] = useState<{
     brutokosten: number;
     berekening_details: string;
     toeslag?: ToeslagResultaat;
   } | null>(null);
+
+  // Scenario vergelijking
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [scenarioNaam, setScenarioNaam] = useState<string>('');
+
+  // Helper functions voor kinderen beheer
+  const addKind = () => {
+    const newId = (kinderen.length + 1).toString();
+    const newKind: Kind = {
+      id: newId,
+      naam: `Kind ${newId}`,
+      opvangvorm_id: '',
+      tariefId: '',
+      uren_per_week: 32,
+      dagen_per_week: 4
+    };
+    setKinderen([...kinderen, newKind]);
+  };
+
+  const removeKind = (index: number) => {
+    if (kinderen.length > 1) {
+      const newKinderen = kinderen.filter((_, i) => i !== index);
+      setKinderen(newKinderen);
+      if (currentChildIndex >= newKinderen.length) {
+        setCurrentChildIndex(newKinderen.length - 1);
+      }
+    }
+  };
+
+  const updateKind = (index: number, updates: Partial<Kind>) => {
+    const newKinderen = [...kinderen];
+    newKinderen[index] = { ...newKinderen[index], ...updates };
+    setKinderen(newKinderen);
+    setResultaat(null); // Reset resultaat bij wijzigingen
+  };
+
+  const getCurrentKind = (): Kind => {
+    return kinderen[currentChildIndex] || kinderen[0];
+  };
+
+  // Scenario management functions
+  const saveCurrentScenario = () => {
+    if (!resultaat) return;
+    
+    const naam = scenarioNaam || `Scenario ${scenarios.length + 1}`;
+    const newScenario: Scenario = {
+      id: Date.now().toString(),
+      naam,
+      kinderen: [...kinderen], // Deep copy
+      resultaat: { ...resultaat },
+      aangemaakt_op: new Date()
+    };
+    
+    setScenarios([...scenarios, newScenario]);
+    setScenarioNaam('');
+  };
+
+  const deleteScenario = (id: string) => {
+    setScenarios(scenarios.filter(s => s.id !== id));
+  };
+
+  const loadScenario = (scenario: Scenario) => {
+    setKinderen([...scenario.kinderen]);
+    setResultaat({ ...scenario.resultaat });
+    setCurrentChildIndex(0);
+    setCurrentStep(3); // Ga naar opvangvorm stap om te bewerken
+  };
+
+  const getBestScenario = (): Scenario | null => {
+    if (scenarios.length === 0) return null;
+    
+    return scenarios.reduce((best, current) => {
+      const currentCost = current.resultaat.toeslag 
+        ? current.resultaat.toeslag.totaal_nettokosten 
+        : current.resultaat.brutokosten;
+      const bestCost = best.resultaat.toeslag 
+        ? best.resultaat.toeslag.totaal_nettokosten 
+        : best.resultaat.brutokosten;
+      
+      return currentCost < bestCost ? current : best;
+    });
+  };
 
   // Load data when component mounts
   useEffect(() => {
@@ -181,8 +299,9 @@ const RekentoolWizardPage: React.FC = () => {
   };
 
   const getGeschikteTarieven = () => {
-    if (!kind.opvangvorm_id) return [];
-    return tarieven.filter(t => t.opvangvorm_id === parseInt(kind.opvangvorm_id));
+    const currentKind = getCurrentKind();
+    if (!currentKind || !currentKind.opvangvorm_id) return [];
+    return tarieven.filter(t => t.opvangvorm_id === parseInt(currentKind.opvangvorm_id));
   };
 
   const mapOpvangvormNaarToeslagType = (opvangvormNaam: string): 'dagopvang' | 'bso' | 'gastouder' => {
@@ -200,12 +319,19 @@ const RekentoolWizardPage: React.FC = () => {
   };
 
   const isStepValid = (step: number): boolean => {
+    const currentKind = getCurrentKind();
+    const allKinderenComplete = kinderen.every(k => 
+      k.opvangvorm_id !== '' && k.tariefId !== '' && k.uren_per_week > 0 && k.dagen_per_week > 0
+    );
+    
     switch (step) {
       case 1: return true; // Welkom stap is altijd geldig
-      case 2: return kind.opvangvorm_id !== '';
-      case 3: return kind.tariefId !== '';
-      case 4: return kind.uren_per_week > 0 && kind.dagen_per_week > 0;
-      case 5: return resultaat !== null;
+      case 2: return kinderen.length > 0; // Aantal kinderen gekozen
+      case 3: return currentKind && currentKind.opvangvorm_id !== '';
+      case 4: return currentKind && currentKind.tariefId !== '';
+      case 5: return currentKind && currentKind.uren_per_week > 0 && currentKind.dagen_per_week > 0;
+      case 6: return allKinderenComplete && resultaat !== null;
+      case 7: return true; // Vergelijking stap is altijd toegankelijk als stap 6 geldig is
       default: return false;
     }
   };
@@ -216,11 +342,11 @@ const RekentoolWizardPage: React.FC = () => {
 
   const nextStep = () => {
     if (currentStep < WIZARD_STEPS.length && canGoToNextStep()) {
-      setCurrentStep(currentStep + 1);
-      if (currentStep === 4) {
-        // Auto-berekenen bij stap 5
+      if (currentStep === 5) {
+        // Auto-berekenen bij stap 6 (resultaat)
         berekenKosten();
       }
+      setCurrentStep(currentStep + 1);
     }
   };
 
@@ -231,8 +357,13 @@ const RekentoolWizardPage: React.FC = () => {
   };
 
   const berekenKosten = async () => {
-    if (!kind.opvangvorm_id || !kind.tariefId) {
-      setError('Selecteer een opvangvorm en tarief');
+    // Controleer of alle kinderen complete gegevens hebben
+    const incompleteKinderen = kinderen.filter(k => 
+      !k.opvangvorm_id || !k.tariefId || k.uren_per_week <= 0 || k.dagen_per_week <= 0
+    );
+
+    if (incompleteKinderen.length > 0) {
+      setError('Vul voor alle kinderen de opvangvorm, tarief, uren en dagen in');
       return;
     }
 
@@ -241,36 +372,56 @@ const RekentoolWizardPage: React.FC = () => {
 
     try {
       const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5007';
-      const geselecteerdTarief = tarieven.find(t => t.id === parseInt(kind.tariefId));
-      const geselecteerdeOpvangvorm = opvangvormen.find(o => o.id === parseInt(kind.opvangvorm_id));
       
-      if (!geselecteerdTarief || !geselecteerdeOpvangvorm) {
-        throw new Error('Tarief of opvangvorm niet gevonden');
+      let totaleBrutokosten = 0;
+      let berekeningSamenvatting: string[] = [];
+      const toeslagKinderen: any[] = [];
+
+      // Bereken voor elk kind apart
+      for (let i = 0; i < kinderen.length; i++) {
+        const kind = kinderen[i];
+        const geselecteerdTarief = tarieven.find(t => t.id === parseInt(kind.tariefId));
+        const geselecteerdeOpvangvorm = opvangvormen.find(o => o.id === parseInt(kind.opvangvorm_id));
+        
+        if (!geselecteerdTarief || !geselecteerdeOpvangvorm) {
+          throw new Error(`Tarief of opvangvorm niet gevonden voor ${kind.naam}`);
+        }
+
+        let brutokosten = 0;
+        let uurtarief = 0;
+
+        // Bereken brutokosten en bepaal uurtarief
+        if (geselecteerdTarief.type === 'uur') {
+          uurtarief = geselecteerdTarief.tarief;
+          brutokosten = geselecteerdTarief.tarief * kind.uren_per_week * 4.33;
+          berekeningSamenvatting.push(`${kind.naam}: ${kind.uren_per_week} uren/week × €${geselecteerdTarief.tarief}/uur × 4.33 weken/maand = €${brutokosten.toFixed(2)}`);
+        } else if (geselecteerdTarief.type === 'dag') {
+          uurtarief = geselecteerdTarief.tarief / 8;
+          brutokosten = geselecteerdTarief.tarief * kind.dagen_per_week * 4.33;
+          berekeningSamenvatting.push(`${kind.naam}: ${kind.dagen_per_week} dagen/week × €${geselecteerdTarief.tarief}/dag × 4.33 weken/maand = €${brutokosten.toFixed(2)}`);
+        } else {
+          uurtarief = geselecteerdTarief.tarief;
+          brutokosten = geselecteerdTarief.tarief;
+          berekeningSamenvatting.push(`${kind.naam}: Vast maandbedrag €${geselecteerdTarief.tarief}`);
+        }
+
+        totaleBrutokosten += brutokosten;
+
+        // Voeg toe aan toeslag berekening
+        const opvangvormNaam = geselecteerdeOpvangvorm?.naam || '';
+        const toeslagType = mapOpvangvormNaarToeslagType(opvangvormNaam);
+        
+        toeslagKinderen.push({
+          opvangvorm: toeslagType,
+          uren_per_maand: kind.uren_per_week * 4.33,
+          uurtarief: uurtarief
+        });
       }
 
-      let brutokosten = 0;
-      let berekening_details = '';
-      let uurtarief = 0;
-
-      // Bereken brutokosten en bepaal uurtarief (simplified for wizard)
-      if (geselecteerdTarief.type === 'uur') {
-        uurtarief = geselecteerdTarief.tarief;
-        brutokosten = geselecteerdTarief.tarief * kind.uren_per_week * 4.33;
-        berekening_details = `${kind.uren_per_week} uren/week × €${geselecteerdTarief.tarief}/uur × 4.33 weken/maand`;
-      } else if (geselecteerdTarief.type === 'dag') {
-        uurtarief = geselecteerdTarief.tarief / 8;
-        brutokosten = geselecteerdTarief.tarief * kind.dagen_per_week * 4.33;
-        berekening_details = `${kind.dagen_per_week} dagen/week × €${geselecteerdTarief.tarief}/dag × 4.33 weken/maand`;
-      } else {
-        uurtarief = geselecteerdTarief.tarief;
-        brutokosten = geselecteerdTarief.tarief;
-        berekening_details = `Vast maandbedrag: €${geselecteerdTarief.tarief}`;
-      }
-
-      // Automatische toeslag berekening
+      // Automatische toeslag berekening voor alle kinderen
       let toeslagResultaat: ToeslagResultaat | undefined;
 
-      if (organisatie?.toeslag_automatisch_berekenen !== false && organisatie?.actief_toeslagjaar) {
+      if (organisatie?.toeslag_automatisch_berekenen !== false && organisatie?.actief_toeslagjaar && toeslagKinderen.length > 0) {
         try {
           let standaardKlasse: Inkomensklasse | undefined;
           
@@ -285,20 +436,13 @@ const RekentoolWizardPage: React.FC = () => {
           }
           
           if (standaardKlasse) {
-            const opvangvormNaam = geselecteerdeOpvangvorm?.naam || '';
-            const toeslagType = mapOpvangvormNaarToeslagType(opvangvormNaam);
-            
             const toeslagInput = {
               organisatieId: organisatie.id,
               actief_toeslagjaar: organisatie.actief_toeslagjaar,
               gemeente_toeslag_percentage: organisatie.gemeente_toeslag_percentage || 0,
               gemeente_toeslag_actief: organisatie.gemeente_toeslag_actief || false,
               gezinsinkomen: (standaardKlasse.min + (standaardKlasse.max || standaardKlasse.min)) / 2,
-              kinderen: [{
-                opvangvorm: toeslagType,
-                uren_per_maand: kind.uren_per_week * 4.33,
-                uurtarief: uurtarief
-              }]
+              kinderen: toeslagKinderen
             };
 
             const toeslagResponse = await fetch(`${apiUrl}/api/toeslag/bereken`, {
@@ -322,8 +466,8 @@ const RekentoolWizardPage: React.FC = () => {
       }
 
       setResultaat({
-        brutokosten: Math.round(brutokosten * 100) / 100,
-        berekening_details,
+        brutokosten: Math.round(totaleBrutokosten * 100) / 100,
+        berekening_details: berekeningSamenvatting.join('\n'),
         toeslag: toeslagResultaat
       });
 
@@ -367,6 +511,8 @@ const RekentoolWizardPage: React.FC = () => {
   }
 
   const renderStepContent = () => {
+    const currentKind = getCurrentKind();
+    
     switch (currentStep) {
       case 1:
         return (
@@ -407,14 +553,91 @@ const RekentoolWizardPage: React.FC = () => {
         return (
           <VStack gap={6} align="stretch">
             <Box textAlign="center">
-              <ChildCareIcon style={{ fontSize: 60, color: '#FF8A89', marginBottom: '1rem' }} />
+              <FamilyRestroomIcon style={{ fontSize: 60, color: '#FF8A89', marginBottom: '1rem' }} />
               <Text fontSize="2xl" fontWeight="bold" mb={2} color="#FF8A89">
-                Kies uw opvangvorm
+                Hoeveel kinderen?
+              </Text>
+              <Text color="gray.600">
+                Voeg kinderen toe waarvoor u kinderopvang zoekt
+              </Text>
+            </Box>
+            
+            <VStack gap={4} align="stretch">
+              {kinderen.map((kind, index) => (
+                <Box key={kind.id} p={4} border="1px solid" borderColor="gray.200" borderRadius="lg" bg="white">
+                  <HStack justifyContent="space-between" mb={3}>
+                    <Input
+                      value={kind.naam}
+                      onChange={(e) => updateKind(index, { naam: e.target.value })}
+                      placeholder={`Kind ${index + 1}`}
+                      size="sm"
+                      maxWidth="200px"
+                    />
+                    {kinderen.length > 1 && (
+                      <Button
+                        size="sm"
+                        colorScheme="red"
+                        variant="outline"
+                        onClick={() => removeKind(index)}
+                      >
+                        <RemoveIcon style={{ fontSize: 16 }} />
+                      </Button>
+                    )}
+                  </HStack>
+                  
+                  <Text fontSize="sm" color="gray.600">
+                    {kind.opvangvorm_id ? '✓' : '○'} Opvangvorm {kind.opvangvorm_id ? 'gekozen' : 'nog kiezen'}
+                    {' • '}
+                    {kind.tariefId ? '✓' : '○'} Tarief {kind.tariefId ? 'gekozen' : 'nog kiezen'}
+                    {' • '}
+                    {kind.uren_per_week > 0 ? '✓' : '○'} Planning {kind.uren_per_week > 0 ? 'ingevuld' : 'nog invullen'}
+                  </Text>
+                </Box>
+              ))}
+              
+                             <Button
+                 onClick={addKind}
+                 variant="outline"
+                 size="lg"
+                 borderColor="#FF8A89"
+                 color="#FF8A89"
+                 _hover={{ bg: '#FFF5F5' }}
+               >
+                 <AddIcon style={{ marginRight: '8px' }} />
+                 Kind toevoegen
+               </Button>
+            </VStack>
+          </VStack>
+        );
+
+      case 3:
+        return (
+          <VStack gap={6} align="stretch">
+            <Box textAlign="center">
+              <ChildCareIcon style={{ fontSize: 60, color: '#FF9933', marginBottom: '1rem' }} />
+              <Text fontSize="2xl" fontWeight="bold" mb={2} color="#FF9933">
+                Kies opvangvorm voor {currentKind.naam}
               </Text>
               <Text color="gray.600">
                 Selecteer het type kinderopvang dat u zoekt
               </Text>
             </Box>
+            
+            {kinderen.length > 1 && (
+              <HStack justifyContent="center" gap={2} wrap="wrap">
+                {kinderen.map((kind, index) => (
+                  <Button
+                    key={kind.id}
+                    size="sm"
+                    variant={currentChildIndex === index ? "solid" : "outline"}
+                    colorScheme={currentChildIndex === index ? "orange" : "gray"}
+                    onClick={() => setCurrentChildIndex(index)}
+                  >
+                    {kind.naam}
+                  </Button>
+                ))}
+              </HStack>
+            )}
             
             <VStack gap={3} align="stretch">
               {opvangvormen.map((opvangvorm) => (
@@ -422,27 +645,25 @@ const RekentoolWizardPage: React.FC = () => {
                   key={opvangvorm.id}
                   p={4}
                   border="2px solid"
-                  borderColor={kind.opvangvorm_id === opvangvorm.id.toString() ? '#FF8A89' : 'gray.200'}
+                  borderColor={currentKind.opvangvorm_id === opvangvorm.id.toString() ? '#FF9933' : 'gray.200'}
                   borderRadius="lg"
                   cursor="pointer"
-                  bg={kind.opvangvorm_id === opvangvorm.id.toString() ? '#FFF5F5' : 'white'}
+                  bg={currentKind.opvangvorm_id === opvangvorm.id.toString() ? '#FFF8F0' : 'white'}
                   onClick={() => {
-                    setKind({ 
-                      ...kind, 
+                    updateKind(currentChildIndex, { 
                       opvangvorm_id: opvangvorm.id.toString(),
                       tariefId: '' // Reset tarief bij wijziging opvangvorm
                     });
-                    setResultaat(null);
                   }}
-                  _hover={{ borderColor: '#FFB3B2', bg: '#FFFAFA' }}
+                  _hover={{ borderColor: '#FFCC99', bg: '#FFFBF7' }}
                   transition="all 0.2s"
                 >
                   <HStack gap={3}>
-                    {kind.opvangvorm_id === opvangvorm.id.toString() && (
-                      <CheckCircleIcon style={{ color: '#FF8A89' }} />
+                    {currentKind.opvangvorm_id === opvangvorm.id.toString() && (
+                      <CheckCircleIcon style={{ color: '#FF9933' }} />
                     )}
                     <VStack align="start" gap={1} flex={1}>
-                      <Text fontWeight="bold" color={kind.opvangvorm_id === opvangvorm.id.toString() ? '#CC5251' : 'gray.800'}>
+                      <Text fontWeight="bold" color={currentKind.opvangvorm_id === opvangvorm.id.toString() ? '#CC6600' : 'gray.800'}>
                         {opvangvorm.naam}
                       </Text>
                       {opvangvorm.omschrijving && (
@@ -458,18 +679,34 @@ const RekentoolWizardPage: React.FC = () => {
           </VStack>
         );
 
-      case 3:
+      case 4:
         return (
           <VStack gap={6} align="stretch">
             <Box textAlign="center">
-              <AttachMoneyIcon style={{ fontSize: 60, color: '#FF9933', marginBottom: '1rem' }} />
-              <Text fontSize="2xl" fontWeight="bold" mb={2} color="#FF9933">
-                Selecteer uw tarief
+              <AttachMoneyIcon style={{ fontSize: 60, color: '#D65DB1', marginBottom: '1rem' }} />
+              <Text fontSize="2xl" fontWeight="bold" mb={2} color="#D65DB1">
+                Selecteer tarief voor {currentKind.naam}
               </Text>
               <Text color="gray.600">
                 Kies het tarief dat bij uw situatie past
               </Text>
             </Box>
+            
+            {kinderen.length > 1 && (
+              <HStack justifyContent="center" gap={2} wrap="wrap">
+                {kinderen.map((kind, index) => (
+                  <Button
+                    key={kind.id}
+                    size="sm"
+                    variant={currentChildIndex === index ? "solid" : "outline"}
+                    colorScheme={currentChildIndex === index ? "purple" : "gray"}
+                    onClick={() => setCurrentChildIndex(index)}
+                  >
+                    {kind.naam}
+                  </Button>
+                ))}
+              </HStack>
+            )}
             
             <VStack gap={3} align="stretch">
               {getGeschikteTarieven().map((tarief) => (
@@ -477,24 +714,23 @@ const RekentoolWizardPage: React.FC = () => {
                   key={tarief.id}
                   p={4}
                   border="2px solid"
-                  borderColor={kind.tariefId === tarief.id.toString() ? '#FF9933' : 'gray.200'}
+                  borderColor={currentKind.tariefId === tarief.id.toString() ? '#D65DB1' : 'gray.200'}
                   borderRadius="lg"
                   cursor="pointer"
-                  bg={kind.tariefId === tarief.id.toString() ? '#FFF8F0' : 'white'}
+                  bg={currentKind.tariefId === tarief.id.toString() ? '#FAF5FF' : 'white'}
                   onClick={() => {
-                    setKind({ ...kind, tariefId: tarief.id.toString() });
-                    setResultaat(null);
+                    updateKind(currentChildIndex, { tariefId: tarief.id.toString() });
                   }}
-                  _hover={{ borderColor: '#FFCC99', bg: '#FFFBF7' }}
+                  _hover={{ borderColor: '#E879F9', bg: '#FEFCFF' }}
                   transition="all 0.2s"
                 >
                   <HStack gap={3} justifyContent="space-between">
                     <HStack gap={3} flex={1}>
-                      {kind.tariefId === tarief.id.toString() && (
-                        <CheckCircleIcon style={{ color: '#FF9933' }} />
+                      {currentKind.tariefId === tarief.id.toString() && (
+                        <CheckCircleIcon style={{ color: '#D65DB1' }} />
                       )}
                       <VStack align="start" gap={1} flex={1}>
-                        <Text fontWeight="bold" color={kind.tariefId === tarief.id.toString() ? '#CC6600' : 'gray.800'}>
+                        <Text fontWeight="bold" color={currentKind.tariefId === tarief.id.toString() ? '#A855F7' : 'gray.800'}>
                           {tarief.naam}
                         </Text>
                         <Text fontSize="sm" color="gray.600" textTransform="capitalize">
@@ -502,7 +738,7 @@ const RekentoolWizardPage: React.FC = () => {
                         </Text>
                       </VStack>
                     </HStack>
-                    <Text fontSize="xl" fontWeight="bold" color="#FF9933">
+                    <Text fontSize="xl" fontWeight="bold" color="#D65DB1">
                       €{tarief.tarief.toFixed(2)}
                     </Text>
                   </HStack>
@@ -512,28 +748,43 @@ const RekentoolWizardPage: React.FC = () => {
           </VStack>
         );
 
-      case 4:
+      case 5:
         return (
           <VStack gap={6} align="stretch">
             <Box textAlign="center">
-              <ScheduleIcon style={{ fontSize: 60, color: '#D65DB1', marginBottom: '1rem' }} />
-              <Text fontSize="2xl" fontWeight="bold" mb={2} color="#D65DB1">
-                Planning invullen
+              <ScheduleIcon style={{ fontSize: 60, color: '#B8312F', marginBottom: '1rem' }} />
+              <Text fontSize="2xl" fontWeight="bold" mb={2} color="#B8312F">
+                Planning voor {currentKind.naam}
               </Text>
               <Text color="gray.600">
                 Hoeveel uren en dagen per week heeft u opvang nodig?
               </Text>
             </Box>
             
+            {kinderen.length > 1 && (
+              <HStack justifyContent="center" gap={2} wrap="wrap">
+                {kinderen.map((kind, index) => (
+                  <Button
+                    key={kind.id}
+                    size="sm"
+                    variant={currentChildIndex === index ? "solid" : "outline"}
+                    colorScheme={currentChildIndex === index ? "red" : "gray"}
+                    onClick={() => setCurrentChildIndex(index)}
+                  >
+                    {kind.naam}
+                  </Button>
+                ))}
+              </HStack>
+            )}
+            
             <VStack gap={6} align="stretch">
               <Box>
                 <Text mb={3} fontWeight="medium" fontSize="lg">Uren per week</Text>
                 <Input
                   type="number"
-                  value={kind.uren_per_week}
+                  value={currentKind.uren_per_week}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                    setKind({ ...kind, uren_per_week: parseInt(e.target.value) || 0 });
-                    setResultaat(null);
+                    updateKind(currentChildIndex, { uren_per_week: parseInt(e.target.value) || 0 });
                   }}
                   min={1}
                   max={50}
@@ -551,10 +802,9 @@ const RekentoolWizardPage: React.FC = () => {
                 <Text mb={3} fontWeight="medium" fontSize="lg">Dagen per week</Text>
                 <Input
                   type="number"
-                  value={kind.dagen_per_week}
+                  value={currentKind.dagen_per_week}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                    setKind({ ...kind, dagen_per_week: parseInt(e.target.value) || 0 });
-                    setResultaat(null);
+                    updateKind(currentChildIndex, { dagen_per_week: parseInt(e.target.value) || 0 });
                   }}
                   min={1}
                   max={5}
@@ -571,7 +821,7 @@ const RekentoolWizardPage: React.FC = () => {
           </VStack>
         );
 
-      case 5:
+      case 6:
         return (
           <VStack gap={6} align="stretch">
             <Box textAlign="center">
@@ -580,7 +830,7 @@ const RekentoolWizardPage: React.FC = () => {
                 Uw kostenberekening
               </Text>
               <Text color="gray.600">
-                Dit zijn uw geschatte maandelijkse kosten
+                Dit zijn uw geschatte maandelijkse kosten voor {kinderen.length === 1 ? '1 kind' : `${kinderen.length} kinderen`}
               </Text>
             </Box>
             
@@ -592,217 +842,491 @@ const RekentoolWizardPage: React.FC = () => {
 
             {resultaat && !berekening && (
               <VStack gap={4} align="stretch">
-                {/* Brutokosten */}
-                <Box bg="gray.50" p={4} borderRadius="md">
-                  <Text fontWeight="bold" fontSize="lg" color="gray.800">
-                    Brutokosten per maand
-                  </Text>
-                  <Text fontSize="2xl" fontWeight="bold" color="#FF6766">
+                {/* Totale kosten */}
+                <Box bg="gray.50" p={6} borderRadius="lg" textAlign="center">
+                  <Text fontSize="lg" color="gray.600" mb={2}>Totale maandelijkse kosten</Text>
+                  <Text fontSize="4xl" fontWeight="bold" color="#B8312F">
                     €{resultaat.brutokosten.toFixed(2)}
                   </Text>
-                  <Text fontSize="sm" color="gray.600">
-                    {resultaat.berekening_details}
+                  <Text fontSize="sm" color="gray.500" mt={2}>
+                    Voor {kinderen.length} {kinderen.length === 1 ? 'kind' : 'kinderen'}
                   </Text>
                 </Box>
 
-                {/* Toeslag resultaten */}
-                {resultaat.toeslag && (
-                  <>
-                    <Box borderTop="1px solid" borderColor="gray.200" pt={4} />
-                    
-                    <Text fontSize="lg" fontWeight="bold" color="gray.800">
-                      💰 Kinderopvangtoeslag
-                    </Text>
-
-                    {/* Eindresultaat */}
-                    <Box bg="#FFF2F2" p={6} borderRadius="xl" border="2px solid" borderColor="#FFB3B2">
-                      <HStack gap={4} align="center">
-                        <Box 
-                          minW={12} 
-                          h={12} 
-                          bg="#FFE6E6" 
-                          borderRadius="full" 
-                          display="flex" 
-                          alignItems="center" 
-                          justifyContent="center"
-                          fontSize="lg"
-                          fontWeight="bold"
-                          color="#B8312F"
-                        >
-                          =
-                        </Box>
-                        <Box flex={1}>
-                          <Text fontSize="xl" fontWeight="bold" color="#B8312F">
-                            Uw netto kosten per maand
-                          </Text>
-                          <Text fontSize="sm" color="gray.600">
-                            Na aftrek van kinderopvangtoeslag
-                          </Text>
-                        </Box>
-                        <Text fontSize="3xl" fontWeight="bold" color="#B8312F">
-                          €{resultaat.toeslag.totaal_nettokosten.toFixed(2)}
+                {/* Per kind opsplitsing */}
+                {kinderen.length > 1 && (
+                  <Box>
+                    <Text fontWeight="bold" mb={3}>Opsplitsing per kind:</Text>
+                    <VStack gap={2} align="stretch">
+                      {resultaat.berekening_details.split('\n').map((detail, index) => (
+                        <Text key={index} fontSize="sm" color="gray.600" p={2} bg="gray.50" borderRadius="md">
+                          {detail}
                         </Text>
-                      </HStack>
-                    </Box>
-
-                    {/* Besparingen */}
-                    <Box bg="#F0FDF4" p={4} borderRadius="lg" border="1px solid" borderColor="#86EFAC">
-                      <HStack gap={4} align="center">
-                        <Text fontSize="2xl">💚</Text>
-                        <VStack align="start" gap={0} flex={1}>
-                          <Text fontWeight="bold" color="#15803D">
-                            Uw besparing per maand
-                          </Text>
-                          <Text fontSize="sm" color="#16A34A">
-                            Door kinderopvangtoeslag
-                          </Text>
-                        </VStack>
-                        <Text fontSize="2xl" fontWeight="bold" color="#15803D">
-                          €{(resultaat.toeslag.totaal_toeslag_landelijk + resultaat.toeslag.totaal_toeslag_gemeente).toFixed(2)}
-                        </Text>
-                      </HStack>
-                    </Box>
-                  </>
+                      ))}
+                    </VStack>
+                  </Box>
                 )}
+
+                {/* Toeslag informatie */}
+                {resultaat.toeslag && (
+                  <Box bg="green.50" p={4} borderRadius="lg" border="1px solid" borderColor="green.200">
+                    <Text fontWeight="bold" color="green.800" mb={2}>
+                      🎉 Geschatte kinderopvangtoeslag
+                    </Text>
+                    <SimpleGrid columns={[1, 2]} gap={4}>
+                      <VStack align="start" gap={1}>
+                        <Text fontSize="sm" color="green.700">Landelijke toeslag:</Text>
+                        <Text fontWeight="bold" color="green.800">€{resultaat.toeslag.totaal_toeslag_landelijk.toFixed(2)}</Text>
+                      </VStack>
+                      {resultaat.toeslag.totaal_toeslag_gemeente > 0 && (
+                        <VStack align="start" gap={1}>
+                          <Text fontSize="sm" color="green.700">Gemeente toeslag:</Text>
+                          <Text fontWeight="bold" color="green.800">€{resultaat.toeslag.totaal_toeslag_gemeente.toFixed(2)}</Text>
+                        </VStack>
+                      )}
+                      <VStack align="start" gap={1}>
+                        <Text fontSize="sm" color="green.700">Totale toeslag:</Text>
+                        <Text fontSize="lg" fontWeight="bold" color="green.800">€{resultaat.toeslag.totaal_toeslag.toFixed(2)}</Text>
+                      </VStack>
+                      <VStack align="start" gap={1}>
+                        <Text fontSize="sm" color="green.700">Eigen bijdrage:</Text>
+                        <Text fontSize="lg" fontWeight="bold" color="green.800">€{Math.max(0, resultaat.toeslag.totaal_nettokosten).toFixed(2)}</Text>
+                      </VStack>
+                    </SimpleGrid>
+
+                    {/* Besparing berekening */}
+                    {resultaat.toeslag.totaal_toeslag > 0 && (
+                      <Box bg="green.100" p={3} borderRadius="md" mt={4}>
+                        <Text textAlign="center" fontWeight="bold" color="green.800">
+                          💰 U bespaart €{resultaat.toeslag.totaal_toeslag.toFixed(2)} per maand
+                        </Text>
+                        <Text textAlign="center" fontSize="sm" color="green.700">
+                          (€{(resultaat.toeslag.totaal_toeslag * 12).toFixed(2)} per jaar)
+                        </Text>
+                      </Box>
+                    )}
+
+                    {/* Eerste vs volgende kinderen */}
+                    {kinderen.length > 1 && resultaat.toeslag.kinderen && (
+                      <Box mt={4}>
+                        <Text fontWeight="bold" color="green.800" mb={2}>Per kind:</Text>
+                        <VStack gap={2} align="stretch">
+                          {resultaat.toeslag.kinderen.map((kindToeslag, index) => (
+                            <Box key={index} p={2} bg="green.100" borderRadius="md">
+                              <HStack justifyContent="space-between">
+                                <Text fontSize="sm" color="green.700">
+                                  {kinderen[index]?.naam || `Kind ${index + 1}`} {kindToeslag.is_eerste_kind ? '(eerste kind)' : '(volgend kind)'}
+                                </Text>
+                                <Text fontWeight="bold" color="green.800">
+                                  €{kindToeslag.toeslag_totaal.toFixed(2)}
+                                </Text>
+                              </HStack>
+                            </Box>
+                          ))}
+                        </VStack>
+                      </Box>
+                    )}
+
+                    <Text fontSize="xs" color="green.600" mt={3} fontStyle="italic">
+                      * Dit is een indicatieve berekening op basis van de standaard inkomensklasse die is ingesteld door uw kinderopvangorganisatie.
+                      Uw werkelijke toeslag kan afwijken afhankelijk van uw daadwerkelijke gezinsinkomen.
+                    </Text>
+                  </Box>
+                )}
+
+                                 {/* Scenario opslaan */}
+                 <Box bg="blue.50" p={4} borderRadius="lg" border="1px solid" borderColor="blue.200">
+                   <Text fontWeight="bold" color="blue.800" mb={3}>
+                     💡 Scenario opslaan
+                   </Text>
+                   <Text fontSize="sm" color="blue.700" mb={3}>
+                     Sla dit scenario op om verschillende opties te vergelijken
+                   </Text>
+                   <HStack gap={3}>
+                     <Input
+                       placeholder="Naam voor dit scenario..."
+                       value={scenarioNaam}
+                       onChange={(e) => setScenarioNaam(e.target.value)}
+                       size="sm"
+                       flex={1}
+                     />
+                     <Button
+                       onClick={saveCurrentScenario}
+                       size="sm"
+                       bg="blue.600"
+                       color="white"
+                       _hover={{ bg: 'blue.700' }}
+                     >
+                       <SaveIcon style={{ marginRight: '8px', fontSize: '16px' }} />
+                       Opslaan
+                     </Button>
+                   </HStack>
+                   {scenarios.length > 0 && (
+                     <Text fontSize="xs" color="blue.600" mt={2}>
+                       {scenarios.length} scenario{scenarios.length !== 1 ? 's' : ''} opgeslagen
+                     </Text>
+                   )}
+                 </Box>
+
+                 {/* Disclaimer */}
+                 <Box bg="gray.50" p={4} borderRadius="lg">
+                   <Text fontSize="sm" color="gray.600" textAlign="center">
+                     <strong>Disclaimer:</strong> Dit is een indicatieve berekening. De werkelijke kosten kunnen afwijken door bijvoorbeeld vakanties, 
+                     feestdagen of veranderingen in uw opvangbehoefte. Voor exacte tarieven kunt u contact opnemen met {organisatie.naam}.
+                   </Text>
+                 </Box>
               </VStack>
             )}
 
             {error && (
-              <Box bg="red.50" p={4} borderRadius="md" border="1px solid" borderColor="red.200">
-                <Text color="red.800" fontWeight="medium">❌ {error}</Text>
+              <Box bg="red.50" p={4} borderRadius="lg" border="1px solid" borderColor="red.200">
+                <Text color="red.800" textAlign="center">{error}</Text>
               </Box>
             )}
           </VStack>
         );
 
+      case 7:
+        return (
+          <VStack gap={6} align="stretch">
+            <Box textAlign="center">
+              <CompareArrowsIcon style={{ fontSize: 60, color: '#8B5CF6', marginBottom: '1rem' }} />
+              <Text fontSize="2xl" fontWeight="bold" mb={2} color="#8B5CF6">
+                Scenario Vergelijking
+              </Text>
+              <Text color="gray.600">
+                Vergelijk uw opgeslagen scenario's om de beste keuze te maken
+              </Text>
+            </Box>
+
+            {scenarios.length === 0 ? (
+              <Box textAlign="center" py={8}>
+                <Text fontSize="lg" color="gray.500" mb={4}>
+                  🤔 Nog geen scenario's opgeslagen
+                </Text>
+                <Text color="gray.600" mb={4}>
+                  Ga terug naar de resultaten (stap 6) om uw huidige berekening op te slaan
+                </Text>
+                <Button
+                  onClick={() => setCurrentStep(6)}
+                  variant="outline"
+                  borderColor="#8B5CF6"
+                  color="#8B5CF6"
+                  _hover={{ bg: '#F3F4F6' }}
+                >
+                  Terug naar resultaten
+                </Button>
+              </Box>
+            ) : (
+              <VStack gap={4} align="stretch">
+                {/* Beste scenario indicator */}
+                {scenarios.length > 1 && (
+                  <Box bg="yellow.50" p={4} borderRadius="lg" border="1px solid" borderColor="yellow.200">
+                    <HStack gap={3}>
+                      <StarIcon style={{ color: '#F59E0B' }} />
+                      <VStack align="start" gap={1}>
+                        <Text fontWeight="bold" color="yellow.800">
+                          Aanbevolen: {getBestScenario()?.naam}
+                        </Text>
+                        <Text fontSize="sm" color="yellow.700">
+                          Dit scenario heeft de laagste maandelijkse kosten
+                        </Text>
+                      </VStack>
+                    </HStack>
+                  </Box>
+                )}
+
+                {/* Scenario vergelijkingstabel */}
+                <Box overflowX="auto">
+                  <Box minWidth="600px">
+                    {/* Headers */}
+                    <SimpleGrid columns={scenarios.length + 1} gap={2} mb={2}>
+                      <Box p={3} fontWeight="bold" color="gray.700">
+                        Vergelijking
+                      </Box>
+                      {scenarios.map((scenario) => {
+                        const isBest = getBestScenario()?.id === scenario.id;
+                        return (
+                          <Box 
+                            key={scenario.id} 
+                            p={3} 
+                            bg={isBest ? 'yellow.50' : 'gray.50'} 
+                            borderRadius="md"
+                            border="1px solid"
+                            borderColor={isBest ? 'yellow.200' : 'gray.200'}
+                            position="relative"
+                          >
+                            {isBest && (
+                              <StarIcon 
+                                style={{ 
+                                  position: 'absolute', 
+                                  top: '4px', 
+                                  right: '4px', 
+                                  fontSize: '16px', 
+                                  color: '#F59E0B' 
+                                }} 
+                              />
+                            )}
+                            <Text fontWeight="bold" color={isBest ? 'yellow.800' : 'gray.800'}>
+                              {scenario.naam}
+                            </Text>
+                            <Text fontSize="xs" color="gray.500">
+                              {scenario.aangemaakt_op.toLocaleDateString()}
+                            </Text>
+                          </Box>
+                        );
+                      })}
+                    </SimpleGrid>
+
+                    {/* Brutokosten */}
+                    <SimpleGrid columns={scenarios.length + 1} gap={2} mb={2}>
+                      <Box p={3} fontWeight="medium" color="gray.700">
+                        Brutokosten
+                      </Box>
+                      {scenarios.map((scenario) => (
+                        <Box key={scenario.id} p={3} bg="white" borderRadius="md" border="1px solid" borderColor="gray.200">
+                          <Text fontWeight="bold" color="red.600">
+                            €{scenario.resultaat.brutokosten.toFixed(2)}
+                          </Text>
+                        </Box>
+                      ))}
+                    </SimpleGrid>
+
+                    {/* Toeslag */}
+                    <SimpleGrid columns={scenarios.length + 1} gap={2} mb={2}>
+                      <Box p={3} fontWeight="medium" color="gray.700">
+                        Toeslag
+                      </Box>
+                      {scenarios.map((scenario) => (
+                        <Box key={scenario.id} p={3} bg="white" borderRadius="md" border="1px solid" borderColor="gray.200">
+                          {scenario.resultaat.toeslag ? (
+                            <Text fontWeight="bold" color="green.600">
+                              €{scenario.resultaat.toeslag.totaal_toeslag.toFixed(2)}
+                            </Text>
+                          ) : (
+                            <Text color="gray.500" fontSize="sm">
+                              Geen toeslag
+                            </Text>
+                          )}
+                        </Box>
+                      ))}
+                    </SimpleGrid>
+
+                    {/* Nettokosten */}
+                    <SimpleGrid columns={scenarios.length + 1} gap={2} mb={4}>
+                      <Box p={3} fontWeight="medium" color="gray.700">
+                        Eigen kosten
+                      </Box>
+                      {scenarios.map((scenario) => {
+                        const nettokosten = scenario.resultaat.toeslag 
+                          ? Math.max(0, scenario.resultaat.toeslag.totaal_nettokosten)
+                          : scenario.resultaat.brutokosten;
+                        const isBest = getBestScenario()?.id === scenario.id;
+                        
+                        return (
+                          <Box 
+                            key={scenario.id} 
+                            p={3} 
+                            bg={isBest ? 'green.50' : 'white'} 
+                            borderRadius="md" 
+                            border="2px solid" 
+                            borderColor={isBest ? 'green.300' : 'gray.200'}
+                          >
+                            <Text fontWeight="bold" fontSize="lg" color={isBest ? 'green.700' : 'gray.800'}>
+                              €{nettokosten.toFixed(2)}
+                            </Text>
+                            <Text fontSize="xs" color="gray.500">
+                              per maand
+                            </Text>
+                          </Box>
+                        );
+                      })}
+                    </SimpleGrid>
+
+                    {/* Kinderen details */}
+                    <SimpleGrid columns={scenarios.length + 1} gap={2} mb={4}>
+                      <Box p={3} fontWeight="medium" color="gray.700">
+                        Kinderen
+                      </Box>
+                      {scenarios.map((scenario) => (
+                        <Box key={scenario.id} p={3} bg="white" borderRadius="md" border="1px solid" borderColor="gray.200">
+                          <Text fontSize="sm" color="gray.700">
+                            {scenario.kinderen.length} {scenario.kinderen.length === 1 ? 'kind' : 'kinderen'}
+                          </Text>
+                          <VStack align="start" gap={1} mt={2}>
+                            {scenario.kinderen.map((kind, index) => {
+                              const opvangvorm = opvangvormen.find(o => o.id === parseInt(kind.opvangvorm_id));
+                              return (
+                                <Text key={index} fontSize="xs" color="gray.600">
+                                  {kind.naam}: {opvangvorm?.naam || 'Onbekend'} - {kind.uren_per_week}u/week
+                                </Text>
+                              );
+                            })}
+                          </VStack>
+                        </Box>
+                      ))}
+                    </SimpleGrid>
+
+                    {/* Acties */}
+                    <SimpleGrid columns={scenarios.length + 1} gap={2}>
+                      <Box p={3} fontWeight="medium" color="gray.700">
+                        Acties
+                      </Box>
+                      {scenarios.map((scenario) => (
+                        <Box key={scenario.id} p={3} bg="white" borderRadius="md" border="1px solid" borderColor="gray.200">
+                          <VStack gap={2}>
+                            <Button
+                              size="xs"
+                              variant="outline"
+                              borderColor="blue.300"
+                              color="blue.600"
+                              _hover={{ bg: 'blue.50' }}
+                              onClick={() => loadScenario(scenario)}
+                              width="full"
+                            >
+                              <EditIcon style={{ marginRight: '4px', fontSize: '12px' }} />
+                              Bewerken
+                            </Button>
+                            <Button
+                              size="xs"
+                              variant="outline"
+                              borderColor="red.300"
+                              color="red.600"
+                              _hover={{ bg: 'red.50' }}
+                              onClick={() => deleteScenario(scenario.id)}
+                              width="full"
+                            >
+                              <DeleteIcon style={{ marginRight: '4px', fontSize: '12px' }} />
+                              Verwijderen
+                            </Button>
+                          </VStack>
+                        </Box>
+                      ))}
+                    </SimpleGrid>
+                  </Box>
+                </Box>
+
+                {/* Voordelen overzicht */}
+                {scenarios.length > 1 && (
+                  <Box bg="green.50" p={4} borderRadius="lg" border="1px solid" borderColor="green.200">
+                    <Text fontWeight="bold" color="green.800" mb={2}>
+                      💰 Kostenverschillen
+                    </Text>
+                    {(() => {
+                      const best = getBestScenario();
+                      const worst = scenarios.reduce((worst, current) => {
+                        const currentCost = current.resultaat.toeslag 
+                          ? current.resultaat.toeslag.totaal_nettokosten 
+                          : current.resultaat.brutokosten;
+                        const worstCost = worst.resultaat.toeslag 
+                          ? worst.resultaat.toeslag.totaal_nettokosten 
+                          : worst.resultaat.brutokosten;
+                        
+                        return currentCost > worstCost ? current : worst;
+                      });
+                      
+                      const bestCost = best?.resultaat.toeslag 
+                        ? Math.max(0, best.resultaat.toeslag.totaal_nettokosten)
+                        : best?.resultaat.brutokosten || 0;
+                      const worstCost = worst.resultaat.toeslag 
+                        ? Math.max(0, worst.resultaat.toeslag.totaal_nettokosten)
+                        : worst.resultaat.brutokosten;
+                      
+                      const verschil = worstCost - bestCost;
+                      
+                      return (
+                        <Text fontSize="sm" color="green.700">
+                          Door de beste optie ({best?.naam}) te kiezen bespaart u <strong>€{verschil.toFixed(2)} per maand</strong> 
+                          {' '}(€{(verschil * 12).toFixed(2)} per jaar) ten opzichte van de duurste optie ({worst.naam}).
+                        </Text>
+                      );
+                    })()}
+                  </Box>
+                )}
+              </VStack>
+            )}
+          </VStack>
+        );
+
       default:
-        return null;
+        return <Text>Onbekende stap</Text>;
     }
   };
 
   return (
-    <Box minHeight="100vh" bg="gray.50" py={8}>
-      <Box maxW="4xl" mx="auto" px={4}>
-        {/* Progress Header */}
-        <Box bg="white" p={6} borderRadius="lg" shadow="sm" mb={6}>
-          <Text fontSize="sm" color="gray.500" mb={2}>
-            Stap {currentStep} van {WIZARD_STEPS.length}
-          </Text>
-          <Box 
-            w="full" 
-            h="3" 
-            bg="gray.200" 
-            borderRadius="full" 
-            mb={4}
-            overflow="hidden"
-          >
-            <Box 
-              h="full" 
-              bg="#FF6766" 
-              borderRadius="full"
-              w={`${(currentStep / WIZARD_STEPS.length) * 100}%`}
-              transition="width 0.3s ease"
-            />
-          </Box>
-          
-          {/* Step indicators */}
-          <HStack justifyContent="space-between">
-            {WIZARD_STEPS.map((step) => {
-              const IconComponent = step.icon;
+    <Box minHeight="100vh" bg="gray.50">
+      {/* Progress bar */}
+      <Box bg="white" borderBottom="1px solid" borderColor="gray.200" px={4} py={3}>
+        <Box maxWidth="800px" mx="auto">
+          <HStack gap={2} mb={2}>
+            {WIZARD_STEPS.map((step, index) => {
               const isActive = currentStep === step.id;
               const isCompleted = currentStep > step.id;
+              const stepColor = isActive ? '#FF6766' : isCompleted ? '#4CAF50' : '#CBD5E0';
               
               return (
-                <VStack key={step.id} gap={2}>
-                  <Box
-                    w={12}
-                    h={12}
+                <React.Fragment key={step.id}>
+                  <Box 
+                    bg={stepColor}
+                    color="white" 
+                    w={8} 
+                    h={8} 
                     borderRadius="full"
-                    bg={isCompleted ? '#4CAF50' : isActive ? '#FF6766' : 'gray.300'}
                     display="flex"
                     alignItems="center"
                     justifyContent="center"
-                    transition="all 0.2s"
+                    fontSize="sm"
+                    fontWeight="bold"
                   >
-                    {isCompleted ? (
-                      <CheckCircleIcon style={{ color: 'white', fontSize: 24 }} />
-                    ) : (
-                      <IconComponent style={{ 
-                        color: isActive ? 'white' : '#A0AEC0', 
-                        fontSize: 24 
-                      }} />
-                    )}
+                    {isCompleted ? <CheckCircleIcon style={{ fontSize: 16 }} /> : step.id}
                   </Box>
-                  <VStack gap={0} align="center">
-                    <Text 
-                      fontSize="xs" 
-                      fontWeight={isActive ? 'bold' : 'medium'}
-                      color={isActive ? '#FF6766' : isCompleted ? '#4CAF50' : 'gray.500'}
-                    >
-                      {step.title}
-                    </Text>
-                    <Text fontSize="xs" color="gray.400">
-                      {step.description}
-                    </Text>
-                  </VStack>
-                </VStack>
+                  {index < WIZARD_STEPS.length - 1 && (
+                    <Box flex={1} h="2px" bg={isCompleted ? '#4CAF50' : '#E2E8F0'} />
+                  )}
+                </React.Fragment>
               );
             })}
           </HStack>
+          <Text fontSize="sm" color="gray.600" textAlign="center">
+            Stap {currentStep} van {WIZARD_STEPS.length}: {WIZARD_STEPS.find(s => s.id === currentStep)?.title}
+          </Text>
         </Box>
+      </Box>
 
-        {/* Step Content */}
-        <Box bg="white" p={8} borderRadius="lg" shadow="sm" mb={6}>
+      {/* Main content */}
+      <Box maxWidth="800px" mx="auto" p={4}>
+        <Box bg="white" borderRadius="lg" p={8} shadow="sm">
           {renderStepContent()}
         </Box>
 
-        {/* Navigation */}
-        <Box bg="white" p={6} borderRadius="lg" shadow="sm">
-          <HStack justifyContent="space-between">
-            <Button
-              onClick={prevStep}
-              disabled={currentStep === 1}
-              variant="outline"
-            >
-              <HStack gap={2}>
-                <ArrowBackIcon style={{ fontSize: 16 }} />
-                <Text>Vorige</Text>
-              </HStack>
-            </Button>
-            
-            <Button
-              onClick={nextStep}
-              disabled={!canGoToNextStep() || currentStep === WIZARD_STEPS.length}
-              bg="#FF6766"
-              color="white"
-              _hover={{ bg: "#E55A59" }}
-              _disabled={{ bg: "gray.300", color: "gray.500" }}
-            >
-              <HStack gap={2}>
-                <Text>{currentStep === WIZARD_STEPS.length ? 'Voltooid' : 'Volgende'}</Text>
-                <ArrowForwardIcon style={{ fontSize: 16 }} />
-              </HStack>
-            </Button>
-          </HStack>
-        </Box>
+        {/* Navigation buttons */}
+        <HStack justifyContent="space-between" mt={6}>
+                     <Button
+             onClick={prevStep}
+             disabled={currentStep === 1}
+             variant="outline"
+             size="lg"
+             borderColor="gray.300"
+             _hover={{ bg: 'gray.50' }}
+           >
+             <ArrowBackIcon style={{ marginRight: '8px' }} />
+             Vorige
+           </Button>
 
-        {/* Disclaimer */}
-        {currentStep === 5 && resultaat?.toeslag && (
-          <Box bg="yellow.50" p={4} borderRadius="lg" border="1px solid" borderColor="yellow.200" mt={6}>
-            <HStack gap={3} align="start">
-              <Text fontSize="xl">⚠️</Text>
-              <VStack align="start" gap={1} flex={1}>
-                <Text fontSize="sm" fontWeight="bold" color="yellow.800">
-                  Belangrijke informatie
-                </Text>
-                <Text fontSize="sm" color="yellow.700">
-                  Dit is een <strong>indicatieve berekening</strong>. Voor de definitieve kinderopvangtoeslag 
-                  dient u een aanvraag in bij de Belastingdienst via <strong>toeslagen.nl</strong>.
-                </Text>
-              </VStack>
-            </HStack>
-          </Box>
-        )}
+           <Button
+             onClick={nextStep}
+             disabled={!canGoToNextStep() || currentStep === WIZARD_STEPS.length}
+             bg="#FF6766"
+             color="white"
+             size="lg"
+             _hover={{ bg: '#E55A59' }}
+           >
+             {currentStep === WIZARD_STEPS.length ? 'Voltooien' : 'Volgende'}
+             {currentStep < WIZARD_STEPS.length && (
+               <ArrowForwardIcon style={{ marginLeft: '8px' }} />
+             )}
+           </Button>
+        </HStack>
       </Box>
     </Box>
   );
