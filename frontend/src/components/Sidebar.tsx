@@ -3,7 +3,7 @@ import { Box, Button, Text } from '@chakra-ui/react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
-import { Home, Baby, DollarSign, Settings, Building2, LogOut } from 'lucide-react';
+import { Home, Baby, DollarSign, Settings, Building2, LogOut, FileText } from 'lucide-react';
 
 const Sidebar: React.FC = () => {
   const navigate = useNavigate();
@@ -18,6 +18,7 @@ const Sidebar: React.FC = () => {
 
   const superuserMenuItems = [
     { path: '/superuser', label: 'Superuser Dashboard', icon: Settings },
+    { path: '/toeslagtabellen', label: 'Toeslagtabellen', icon: FileText },
     { path: '/dashboard', label: 'Organisatie Dashboard', icon: Building2 },
   ];
 

@@ -8,6 +8,7 @@ import SuperuserDashboard from './pages/SuperuserDashboard';
 import OrganisatieAdminPage from './pages/OrganisatieAdminPage';
 import OpvangvormenPage from './pages/OpvangvormenPage';
 import TarievenPage from './pages/TarievenPage';
+import ToeslagtabelBeheerPage from './pages/ToeslagtabelBeheerPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppLayout from './components/AppLayout';
 import RekentoolPage from './pages/RekentoolPage';
@@ -33,6 +34,7 @@ function App() {
             <Route path="/admin/:slug" element={<ProtectedRoute><AppLayout><OrganisatieAdminPage /></AppLayout></ProtectedRoute>} />
             <Route path="/opvangvormen" element={<ProtectedRoute><AppLayout><OpvangvormenPage /></AppLayout></ProtectedRoute>} />
             <Route path="/tarieven" element={<ProtectedRoute><AppLayout><TarievenPage /></AppLayout></ProtectedRoute>} />
+            <Route path="/toeslagtabellen" element={<ProtectedRoute><AppLayout><ToeslagtabelBeheerPage /></AppLayout></ProtectedRoute>} />
           </Routes>
         </Router>
       </AuthProvider>
