@@ -12,6 +12,7 @@ import ToeslagtabelBeheerPage from './pages/ToeslagtabelBeheerPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppLayout from './components/AppLayout';
 import RekentoolPage from './pages/RekentoolPage';
+import RekentoolWizardPage from './pages/RekentoolWizardPage';
 import MultitenancyTestPage from './pages/MultitenancyTestPage';
 
 function App() {
@@ -23,8 +24,9 @@ function App() {
             {/* Test pagina voor multitenancy */}
             <Route path="/test" element={<MultitenancyTestPage />} />
             
-            {/* Publieke route voor ouders - geen authenticatie vereist */}
+            {/* Publieke routes voor ouders - geen authenticatie vereist */}
             <Route path="/rekentool/:organisatieSlug" element={<RekentoolPage />} />
+            <Route path="/wizard/:organisatieSlug" element={<RekentoolWizardPage />} />
             
             {/* Beveiligde routes voor organisatiebeheer */}
             <Route path="/login" element={<LoginPage />} />
