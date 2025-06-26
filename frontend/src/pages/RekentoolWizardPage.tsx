@@ -27,6 +27,9 @@ import SaveIcon from '@mui/icons-material/Save';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import StarIcon from '@mui/icons-material/Star';
+import EventIcon from '@mui/icons-material/Event';
+import BeachAccessIcon from '@mui/icons-material/BeachAccess';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 
 interface Organisatie {
   id: number;
@@ -98,6 +101,27 @@ interface ToeslagResultaat {
   };
 }
 
+interface VakantieWeek {
+  weekNummer: number;
+  naam: string;
+  datum: string;
+  geselecteerd: boolean;
+}
+
+interface JaarPlanningResultaat {
+  maandelijkse_kosten: number;
+  werkelijke_jaarkosten: number;
+  besparing_door_vakanties: number;
+  maandelijkse_breakdown: Array<{
+    maand: string;
+    weken: number;
+    kosten: number;
+    vakantieweken: string[];
+  }>;
+  totaal_opvang_weken: number;
+  totaal_vakantie_weken: number;
+}
+
 interface Scenario {
   id: string;
   naam: string;
@@ -106,7 +130,9 @@ interface Scenario {
     brutokosten: number;
     berekening_details: string;
     toeslag?: ToeslagResultaat;
+    jaarplanning?: JaarPlanningResultaat;
   };
+  vakantieweken: VakantieWeek[];
   aangemaakt_op: Date;
 }
 
@@ -118,7 +144,8 @@ const WIZARD_STEPS = [
   { id: 4, title: 'Tarief', icon: AttachMoneyIcon, description: 'Selecteer tarief' },
   { id: 5, title: 'Planning', icon: ScheduleIcon, description: 'Uren en dagen' },
   { id: 6, title: 'Resultaat', icon: AssessmentIcon, description: 'Kosten berekening' },
-  { id: 7, title: 'Vergelijken', icon: CompareArrowsIcon, description: 'Scenario vergelijking' }
+  { id: 7, title: 'Jaarplanning', icon: EventIcon, description: 'Vakantieweken selectie' },
+  { id: 8, title: 'Vergelijken', icon: CompareArrowsIcon, description: 'Scenario vergelijking' }
 ];
 
 const RekentoolWizardPage: React.FC = () => {
@@ -157,6 +184,10 @@ const RekentoolWizardPage: React.FC = () => {
   // Scenario vergelijking
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [scenarioNaam, setScenarioNaam] = useState<string>('');
+
+  // Jaarplanning
+  const [vakantieweken, setVakantieweken] = useState<VakantieWeek[]>([]);
+  const [jaarplanningResultaat, setJaarplanningResultaat] = useState<JaarPlanningResultaat | null>(null);
 
   // Helper functions voor kinderen beheer
   const addKind = () => {
@@ -202,7 +233,11 @@ const RekentoolWizardPage: React.FC = () => {
       id: Date.now().toString(),
       naam,
       kinderen: [...kinderen], // Deep copy
-      resultaat: { ...resultaat },
+      resultaat: { 
+        ...resultaat, 
+        jaarplanning: jaarplanningResultaat ? { ...jaarplanningResultaat } : undefined 
+      },
+      vakantieweken: [...vakantieweken],
       aangemaakt_op: new Date()
     };
     
@@ -217,6 +252,8 @@ const RekentoolWizardPage: React.FC = () => {
   const loadScenario = (scenario: Scenario) => {
     setKinderen([...scenario.kinderen]);
     setResultaat({ ...scenario.resultaat });
+    setVakantieweken([...scenario.vakantieweken]);
+    setJaarplanningResultaat(scenario.resultaat.jaarplanning || null);
     setCurrentChildIndex(0);
     setCurrentStep(3); // Ga naar opvangvorm stap om te bewerken
   };
@@ -236,9 +273,108 @@ const RekentoolWizardPage: React.FC = () => {
     });
   };
 
+  // Jaarplanning helper functions
+  const initializeVakantieweken = () => {
+    const standaardVakanties: VakantieWeek[] = [
+      { weekNummer: 9, naam: 'Voorjaarsvakantie', datum: 'Februari/Maart', geselecteerd: true },
+      { weekNummer: 18, naam: 'Meivakantie', datum: 'Mei', geselecteerd: true },
+      { weekNummer: 29, naam: 'Zomervakantie week 1', datum: 'Juli', geselecteerd: true },
+      { weekNummer: 30, naam: 'Zomervakantie week 2', datum: 'Juli', geselecteerd: true },
+      { weekNummer: 31, naam: 'Zomervakantie week 3', datum: 'Juli', geselecteerd: true },
+      { weekNummer: 32, naam: 'Zomervakantie week 4', datum: 'Augustus', geselecteerd: true },
+      { weekNummer: 33, naam: 'Zomervakantie week 5', datum: 'Augustus', geselecteerd: true },
+      { weekNummer: 34, naam: 'Zomervakantie week 6', datum: 'Augustus', geselecteerd: true },
+      { weekNummer: 42, naam: 'Herfstvakantie', datum: 'Oktober', geselecteerd: true },
+      { weekNummer: 52, naam: 'Kerstvakantie', datum: 'December', geselecteerd: true },
+      { weekNummer: 1, naam: 'Nieuwjaarsvakantie', datum: 'Januari', geselecteerd: true }
+    ];
+    
+    setVakantieweken(standaardVakanties);
+  };
+
+  const toggleVakantieweek = (weekNummer: number) => {
+    setVakantieweken(prev => 
+      prev.map(week => 
+        week.weekNummer === weekNummer 
+          ? { ...week, geselecteerd: !week.geselecteerd }
+          : week
+      )
+    );
+    setJaarplanningResultaat(null); // Reset resultaat bij wijzigingen
+  };
+
+  const berekenJaarplanning = () => {
+    if (!resultaat) return;
+
+    const geselecteerdeVakanties = vakantieweken.filter(v => v.geselecteerd);
+    const totaalVakantieWeken = geselecteerdeVakanties.length;
+    const totaalOpvangWeken = 52 - totaalVakantieWeken;
+    
+    // Bereken werkelijke kosten
+    const weekelijkseKosten = resultaat.brutokosten / 4.33; // Van maandelijks naar wekelijks
+    const werkelijkeJaarkosten = weekelijkseKosten * totaalOpvangWeken;
+    const theoretischeJaarkosten = resultaat.brutokosten * 12;
+    const besparingDoorVakanties = theoretischeJaarkosten - werkelijkeJaarkosten;
+
+    // Maandelijkse breakdown
+    const maandelijkseBreakdown = [
+      { maand: 'Januari', weken: 4, kosten: 0, vakantieweken: [] as string[] },
+      { maand: 'Februari', weken: 4, kosten: 0, vakantieweken: [] as string[] },
+      { maand: 'Maart', weken: 4, kosten: 0, vakantieweken: [] as string[] },
+      { maand: 'April', weken: 4, kosten: 0, vakantieweken: [] as string[] },
+      { maand: 'Mei', weken: 4, kosten: 0, vakantieweken: [] as string[] },
+      { maand: 'Juni', weken: 4, kosten: 0, vakantieweken: [] as string[] },
+      { maand: 'Juli', weken: 5, kosten: 0, vakantieweken: [] as string[] },
+      { maand: 'Augustus', weken: 4, kosten: 0, vakantieweken: [] as string[] },
+      { maand: 'September', weken: 4, kosten: 0, vakantieweken: [] as string[] },
+      { maand: 'Oktober', weken: 4, kosten: 0, vakantieweken: [] as string[] },
+      { maand: 'November', weken: 4, kosten: 0, vakantieweken: [] as string[] },
+      { maand: 'December', weken: 5, kosten: 0, vakantieweken: [] as string[] }
+    ];
+
+    // Voeg vakantieweken toe aan juiste maanden
+    geselecteerdeVakanties.forEach(vakantie => {
+      let maandIndex = -1;
+      if (vakantie.weekNummer <= 4) maandIndex = 0; // Januari
+      else if (vakantie.weekNummer <= 8) maandIndex = 1; // Februari  
+      else if (vakantie.weekNummer <= 13) maandIndex = 2; // Maart
+      else if (vakantie.weekNummer <= 17) maandIndex = 3; // April
+      else if (vakantie.weekNummer <= 22) maandIndex = 4; // Mei
+      else if (vakantie.weekNummer <= 26) maandIndex = 5; // Juni
+      else if (vakantie.weekNummer <= 31) maandIndex = 6; // Juli
+      else if (vakantie.weekNummer <= 35) maandIndex = 7; // Augustus
+      else if (vakantie.weekNummer <= 39) maandIndex = 8; // September
+      else if (vakantie.weekNummer <= 43) maandIndex = 9; // Oktober
+      else if (vakantie.weekNummer <= 47) maandIndex = 10; // November
+      else maandIndex = 11; // December
+
+      if (maandIndex >= 0) {
+        maandelijkseBreakdown[maandIndex].vakantieweken.push(vakantie.naam);
+        maandelijkseBreakdown[maandIndex].weken -= 1;
+      }
+    });
+
+    // Bereken kosten per maand
+    maandelijkseBreakdown.forEach(maand => {
+      maand.kosten = weekelijkseKosten * maand.weken;
+    });
+
+    const jaarplanning: JaarPlanningResultaat = {
+      maandelijkse_kosten: resultaat.brutokosten,
+      werkelijke_jaarkosten: werkelijkeJaarkosten,
+      besparing_door_vakanties: besparingDoorVakanties,
+      maandelijkse_breakdown: maandelijkseBreakdown,
+      totaal_opvang_weken: totaalOpvangWeken,
+      totaal_vakantie_weken: totaalVakantieWeken
+    };
+
+    setJaarplanningResultaat(jaarplanning);
+  };
+
   // Load data when component mounts
   useEffect(() => {
     loadOrganisatieData();
+    initializeVakantieweken();
   }, [organisatieSlug]);
 
   const loadOrganisatieData = async () => {
@@ -331,7 +467,8 @@ const RekentoolWizardPage: React.FC = () => {
       case 4: return currentKind && currentKind.tariefId !== '';
       case 5: return currentKind && currentKind.uren_per_week > 0 && currentKind.dagen_per_week > 0;
       case 6: return allKinderenComplete && resultaat !== null;
-      case 7: return true; // Vergelijking stap is altijd toegankelijk als stap 6 geldig is
+      case 7: return vakantieweken.length > 0; // Jaarplanning - vakantieweken geladen
+      case 8: return true; // Vergelijking stap is altijd toegankelijk
       default: return false;
     }
   };
@@ -345,6 +482,9 @@ const RekentoolWizardPage: React.FC = () => {
       if (currentStep === 5) {
         // Auto-berekenen bij stap 6 (resultaat)
         berekenKosten();
+      } else if (currentStep === 7 && resultaat) {
+        // Auto-berekenen jaarplanning bij stap 8 (vergelijking)
+        berekenJaarplanning();
       }
       setCurrentStep(currentStep + 1);
     }
@@ -987,6 +1127,223 @@ const RekentoolWizardPage: React.FC = () => {
         );
 
       case 7:
+        return (
+          <VStack gap={6} align="stretch">
+            <Box textAlign="center">
+              <EventIcon style={{ fontSize: 60, color: '#8B5CF6', marginBottom: '1rem' }} />
+              <Text fontSize="2xl" fontWeight="bold" mb={2} color="#8B5CF6">
+                Jaarplanning
+              </Text>
+              <Text color="gray.600">
+                Selecteer uw vakantieweken om uw werkelijke jaarkosten te berekenen
+              </Text>
+            </Box>
+
+            <Box bg="blue.50" p={4} borderRadius="lg" border="1px solid" borderColor="blue.200">
+              <HStack gap={3} mb={3}>
+                <CalendarTodayIcon style={{ color: '#3B82F6' }} />
+                <VStack align="start" gap={1}>
+                  <Text fontWeight="bold" color="blue.800">
+                    Waarom jaarplanning?
+                  </Text>
+                  <Text fontSize="sm" color="blue.700">
+                    In vakantieweken betaalt u vaak geen kinderopvang. Deze berekening toont uw werkelijke jaarkosten.
+                  </Text>
+                </VStack>
+              </HStack>
+            </Box>
+
+            <VStack gap={4} align="stretch">
+              <Text fontWeight="bold" fontSize="lg">
+                Selecteer uw vakantieweken:
+              </Text>
+              
+              <SimpleGrid columns={[1, 2]} gap={3}>
+                {vakantieweken.map((vakantie) => (
+                  <Box
+                    key={vakantie.weekNummer}
+                    p={3}
+                    border="2px solid"
+                    borderColor={vakantie.geselecteerd ? '#8B5CF6' : 'gray.200'}
+                    borderRadius="lg"
+                    cursor="pointer"
+                    bg={vakantie.geselecteerd ? '#F3F4F6' : 'white'}
+                    onClick={() => toggleVakantieweek(vakantie.weekNummer)}
+                    _hover={{ borderColor: vakantie.geselecteerd ? '#7C3AED' : '#D1D5DB', bg: '#FAFAFA' }}
+                    transition="all 0.2s"
+                  >
+                    <HStack gap={3}>
+                      <Box
+                        w={6}
+                        h={6}
+                        borderRadius="md"
+                        bg={vakantie.geselecteerd ? '#8B5CF6' : 'gray.300'}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        color="white"
+                        fontSize="sm"
+                        fontWeight="bold"
+                      >
+                        {vakantie.geselecteerd ? '✓' : vakantie.weekNummer}
+                      </Box>
+                      <VStack align="start" gap={0} flex={1}>
+                        <Text fontWeight="bold" color={vakantie.geselecteerd ? '#7C3AED' : 'gray.800'}>
+                          {vakantie.naam}
+                        </Text>
+                        <Text fontSize="sm" color="gray.600">
+                          Week {vakantie.weekNummer} - {vakantie.datum}
+                        </Text>
+                      </VStack>
+                      {vakantie.geselecteerd && (
+                        <BeachAccessIcon style={{ color: '#8B5CF6', fontSize: '20px' }} />
+                      )}
+                    </HStack>
+                  </Box>
+                ))}
+              </SimpleGrid>
+
+              {/* Snelle acties */}
+              <HStack justifyContent="center" gap={4} pt={4}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  borderColor="#8B5CF6"
+                  color="#8B5CF6"
+                  onClick={() => {
+                    setVakantieweken(prev => prev.map(v => ({ ...v, geselecteerd: true })));
+                    setJaarplanningResultaat(null);
+                  }}
+                  _hover={{ bg: '#F3F4F6' }}
+                >
+                  Alles selecteren
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  borderColor="gray.400"
+                  color="gray.600"
+                  onClick={() => {
+                    setVakantieweken(prev => prev.map(v => ({ ...v, geselecteerd: false })));
+                    setJaarplanningResultaat(null);
+                  }}
+                  _hover={{ bg: '#F9FAFB' }}
+                >
+                  Alles deselecteren
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  borderColor="blue.400"
+                  color="blue.600"
+                  onClick={() => {
+                    initializeVakantieweken(); // Reset naar standaard
+                    setJaarplanningResultaat(null);
+                  }}
+                  _hover={{ bg: '#EFF6FF' }}
+                >
+                  Standaard herstel
+                </Button>
+              </HStack>
+
+              {/* Vakantie overzicht */}
+              <Box bg="gray.50" p={4} borderRadius="lg">
+                <Text fontWeight="bold" mb={2}>Overzicht:</Text>
+                <SimpleGrid columns={[2, 4]} gap={4}>
+                  <VStack gap={1}>
+                    <Text fontSize="sm" color="gray.600">Vakantieweken</Text>
+                    <Text fontSize="lg" fontWeight="bold" color="red.600">
+                      {vakantieweken.filter(v => v.geselecteerd).length}
+                    </Text>
+                  </VStack>
+                  <VStack gap={1}>
+                    <Text fontSize="sm" color="gray.600">Opvangweken</Text>
+                    <Text fontSize="lg" fontWeight="bold" color="green.600">
+                      {52 - vakantieweken.filter(v => v.geselecteerd).length}
+                    </Text>
+                  </VStack>
+                  <VStack gap={1}>
+                    <Text fontSize="sm" color="gray.600">Theoretisch per jaar</Text>
+                    <Text fontSize="lg" fontWeight="bold" color="gray.700">
+                      €{resultaat ? (resultaat.brutokosten * 12).toFixed(0) : '0'}
+                    </Text>
+                  </VStack>
+                  <VStack gap={1}>
+                    <Text fontSize="sm" color="gray.600">Geschatte besparing</Text>
+                    <Text fontSize="lg" fontWeight="bold" color="blue.600">
+                      €{resultaat ? ((resultaat.brutokosten / 4.33) * vakantieweken.filter(v => v.geselecteerd).length * 4.33).toFixed(0) : '0'}
+                    </Text>
+                  </VStack>
+                </SimpleGrid>
+              </Box>
+
+              {/* Jaarplanning resultaat */}
+              {jaarplanningResultaat && (
+                <VStack gap={4} align="stretch">
+                  <Box bg="green.50" p={4} borderRadius="lg" border="1px solid" borderColor="green.200">
+                    <Text fontWeight="bold" color="green.800" mb={3}>
+                      🗓️ Jaarkosten Overzicht
+                    </Text>
+                    <SimpleGrid columns={[1, 3]} gap={4}>
+                      <VStack gap={1}>
+                        <Text fontSize="sm" color="green.700">Werkelijke jaarkosten</Text>
+                        <Text fontSize="xl" fontWeight="bold" color="green.800">
+                          €{jaarplanningResultaat.werkelijke_jaarkosten.toFixed(0)}
+                        </Text>
+                      </VStack>
+                      <VStack gap={1}>
+                        <Text fontSize="sm" color="green.700">Besparing door vakanties</Text>
+                        <Text fontSize="xl" fontWeight="bold" color="green.800">
+                          €{jaarplanningResultaat.besparing_door_vakanties.toFixed(0)}
+                        </Text>
+                      </VStack>
+                      <VStack gap={1}>
+                        <Text fontSize="sm" color="green.700">Opvang weken per jaar</Text>
+                        <Text fontSize="xl" fontWeight="bold" color="green.800">
+                          {jaarplanningResultaat.totaal_opvang_weken}
+                        </Text>
+                      </VStack>
+                    </SimpleGrid>
+                  </Box>
+
+                  {/* Maandelijkse breakdown */}
+                  <Box>
+                    <Text fontWeight="bold" mb={3}>Maandelijkse kosten:</Text>
+                    <SimpleGrid columns={[2, 3, 4]} gap={2}>
+                      {jaarplanningResultaat.maandelijkse_breakdown.map((maand) => (
+                        <Box 
+                          key={maand.maand} 
+                          p={3} 
+                          bg={maand.vakantieweken.length > 0 ? 'orange.50' : 'white'} 
+                          borderRadius="md" 
+                          border="1px solid" 
+                          borderColor={maand.vakantieweken.length > 0 ? 'orange.200' : 'gray.200'}
+                        >
+                          <Text fontWeight="bold" fontSize="sm">
+                            {maand.maand}
+                          </Text>
+                          <Text fontSize="lg" fontWeight="bold" color={maand.vakantieweken.length > 0 ? 'orange.600' : 'gray.800'}>
+                            €{maand.kosten.toFixed(0)}
+                          </Text>
+                          <Text fontSize="xs" color="gray.600">
+                            {maand.weken} weken
+                          </Text>
+                          {maand.vakantieweken.length > 0 && (
+                            <Text fontSize="xs" color="orange.600">
+                              🏖️ {maand.vakantieweken.length} vakantie{maand.vakantieweken.length > 1 ? 's' : ''}
+                            </Text>
+                          )}
+                        </Box>
+                      ))}
+                    </SimpleGrid>
+                  </Box>
+                </VStack>
+              )}
+            </VStack>
+          </VStack>
+        );
+
+      case 8:
         return (
           <VStack gap={6} align="stretch">
             <Box textAlign="center">
