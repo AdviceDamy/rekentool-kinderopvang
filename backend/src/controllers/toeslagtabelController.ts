@@ -1,6 +1,7 @@
 import { Response, Request } from 'express';
 import { ToeslagtabelModel, ToeslagtabelData } from '../models/Toeslagtabel';
 import { OrganisatieRequest } from '../middleware/organisatieContext';
+import { ToeslagValidator } from '../utils/validation';
 
 /**
  * Alle toeslagtabellen ophalen (superuser only)
@@ -148,11 +149,13 @@ export const createToeslagtabel = async (req: OrganisatieRequest, res: Response)
       return;
     }
 
-    // Valideer JSON data structuur
-    if (!ToeslagtabelModel.validateData(data)) {
+    // Gebruik de nieuwe validator voor uitgebreide validatie
+    const validation = ToeslagValidator.validateToeslagtabelData(data);
+    if (!validation.isValid) {
       res.status(400).json({
         success: false,
-        error: 'Ongeldige toeslagtabel data structuur'
+        error: 'Ongeldige toeslagtabel data',
+        details: validation.errors
       });
       return;
     }
@@ -207,10 +210,12 @@ export const updateToeslagtabel = async (req: OrganisatieRequest, res: Response)
     const updates: any = {};
     
     if (data !== undefined) {
-      if (!ToeslagtabelModel.validateData(data)) {
+      const validation = ToeslagValidator.validateToeslagtabelData(data);
+      if (!validation.isValid) {
         res.status(400).json({
           success: false,
-          error: 'Ongeldige toeslagtabel data structuur'
+          error: 'Ongeldige toeslagtabel data',
+          details: validation.errors
         });
         return;
       }

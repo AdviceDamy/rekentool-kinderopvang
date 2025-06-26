@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { ToeslagService, ToeslagBerekeningInput } from '../services/toeslagService';
 import { OrganisatieModel } from '../models/Organisatie';
+import { ToeslagValidator } from '../utils/validation';
 
 /**
  * Bereken kinderopvangtoeslag
@@ -9,11 +10,13 @@ export const berekenToeslag = async (req: Request, res: Response): Promise<void>
   try {
     const input: ToeslagBerekeningInput = req.body;
 
-    // Validatie
-    if (!input.organisatieId || !input.actief_toeslagjaar || !input.gezinsinkomen || !input.kinderen || input.kinderen.length === 0) {
+    // Gebruik de nieuwe validator
+    const validation = ToeslagValidator.validateToeslagInput(input);
+    if (!validation.isValid) {
       res.status(400).json({
         success: false,
-        error: 'Ontbrekende verplichte velden'
+        error: 'Validatie fouten',
+        details: validation.errors
       });
       return;
     }

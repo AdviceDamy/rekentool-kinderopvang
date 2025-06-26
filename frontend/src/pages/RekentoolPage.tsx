@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Box, Text, Button, Input, VStack, HStack } from '@chakra-ui/react';
+import ToeslagResultaat from '../components/ToeslagResultaat';
 
 interface Organisatie {
   id: number;
@@ -583,84 +584,11 @@ const RekentoolPage: React.FC = () => {
 
               {/* Toeslag resultaten */}
               {resultaat.toeslag && (
-                <>
-                  <Box borderTop="1px solid" borderColor="gray.200" pt={4} />
-                  
-                  {/* Landelijke toeslag */}
-                  <Box bg="green.50" p={4} borderRadius="md">
-                    <Text fontWeight="bold" fontSize="lg" color="green.800">
-                      Kinderopvangtoeslag (landelijk)
-                    </Text>
-                    <Text fontSize="2xl" fontWeight="bold" color="green.600">
-                      €{resultaat.toeslag.totaal_toeslag_landelijk.toFixed(2)}
-                    </Text>
-                    <Text fontSize="sm" color="green.700">
-                      Gebaseerd op toeslagtabel {resultaat.toeslag.gebruikte_toeslagtabel.jaar}
-                    </Text>
-                  </Box>
-
-                  {/* Gemeentelijke toeslag */}
-                  {resultaat.toeslag.totaal_toeslag_gemeente > 0 && (
-                    <Box bg="blue.50" p={4} borderRadius="md">
-                      <Text fontWeight="bold" fontSize="lg" color="blue.800">
-                        Gemeentelijke toeslag
-                      </Text>
-                      <Text fontSize="2xl" fontWeight="bold" color="blue.600">
-                        €{resultaat.toeslag.totaal_toeslag_gemeente.toFixed(2)}
-                      </Text>
-                      <Text fontSize="sm" color="blue.700">
-                        Extra {organisatie.gemeente_toeslag_percentage}% gemeentelijke bijdrage
-                      </Text>
-                    </Box>
-                  )}
-
-                  {/* Netto kosten */}
-                  <Box bg="purple.50" p={4} borderRadius="md" border="2px solid" borderColor="purple.200">
-                    <Text fontWeight="bold" fontSize="lg" color="purple.800">
-                      Uw netto kosten per maand
-                    </Text>
-                    <Text fontSize="3xl" fontWeight="bold" color="purple.600">
-                      €{resultaat.toeslag.totaal_nettokosten.toFixed(2)}
-                    </Text>
-                    <Text fontSize="sm" color="purple.700">
-                      Brutokosten minus kinderopvangtoeslag
-                    </Text>
-                  </Box>
-
-                  {/* Overzicht */}
-                  <Box bg="gray.50" p={4} borderRadius="md">
-                    <Text fontWeight="bold" mb={2}>Overzicht berekening:</Text>
-                    <VStack gap={1} align="stretch" fontSize="sm">
-                      <HStack justifyContent="space-between">
-                        <Text>Brutokosten:</Text>
-                        <Text>€{resultaat.toeslag.totaal_brutokosten.toFixed(2)}</Text>
-                      </HStack>
-                      <HStack justifyContent="space-between">
-                        <Text>Kinderopvangtoeslag:</Text>
-                        <Text color="green.600">-€{resultaat.toeslag.totaal_toeslag_landelijk.toFixed(2)}</Text>
-                      </HStack>
-                      {resultaat.toeslag.totaal_toeslag_gemeente > 0 && (
-                        <HStack justifyContent="space-between">
-                          <Text>Gemeentelijke toeslag:</Text>
-                          <Text color="blue.600">-€{resultaat.toeslag.totaal_toeslag_gemeente.toFixed(2)}</Text>
-                        </HStack>
-                      )}
-                      <Box borderTop="1px solid" borderColor="gray.200" pt={1} />
-                      <HStack justifyContent="space-between" fontWeight="bold">
-                        <Text>Netto kosten:</Text>
-                        <Text color="purple.600">€{resultaat.toeslag.totaal_nettokosten.toFixed(2)}</Text>
-                      </HStack>
-                    </VStack>
-                  </Box>
-
-                  <Box bg="yellow.50" p={3} borderRadius="md">
-                    <Text fontSize="sm" color="yellow.800">
-                      <strong>Let op:</strong> Dit is een indicatieve berekening. Voor de definitieve kinderopvangtoeslag 
-                      dient u een aanvraag in bij de Belastingdienst. De werkelijke toeslag kan afwijken afhankelijk van 
-                      uw specifieke situatie.
-                    </Text>
-                  </Box>
-                </>
+                <ToeslagResultaat 
+                  brutokosten={resultaat.brutokosten}
+                  toeslag={resultaat.toeslag}
+                  organisatie={organisatie}
+                />
               )}
             </VStack>
           </Box>

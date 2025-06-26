@@ -74,17 +74,11 @@ app.use('*', (req, res) => {
   });
 });
 
+// Import error handler
+import { errorHandler } from './utils/errors';
+
 // Global error handler
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Global error handler:', err);
-  
-  res.status(err.status || 500).json({
-    success: false,
-    error: process.env.NODE_ENV === 'production' 
-      ? 'Er is een serverfout opgetreden' 
-      : err.message
-  });
-});
+app.use(errorHandler);
 
 // Start server
 app.listen(PORT, () => {
