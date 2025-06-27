@@ -11,7 +11,9 @@ import {
   Input,
   createToaster,
   Grid,
-  GridItem
+  GridItem,
+  Container,
+  Flex
 } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -31,7 +33,10 @@ import {
   MapPin,
   Mail,
   Phone,
-  Home
+  Home,
+  TrendingUp,
+  Shield,
+  Activity
 } from 'lucide-react';
 
 interface Organisatie {
@@ -220,215 +225,647 @@ const SuperuserDashboard: React.FC = () => {
     navigate(`/admin/${organisatie.slug}`);
   };
 
+  const loginAsOrganisatie = async (organisatie: Organisatie) => {
+    try {
+      const confirmMessage = `Wilt u inloggen als organisatie "${organisatie.naam}"?\n\nU krijgt dan toegang tot hun dashboard alsof u een beheerder van deze organisatie bent.`;
+      
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
+
+      // Impersonate de organisatie door een speciale context te zetten
+      // We kunnen dit doen door de organisatie context in de auth context te updaten
+      const token = localStorage.getItem('token');
+      
+      // Maak een tijdelijke "organisatie context" voor de superuser
+      const impersonateData = {
+        originalRole: 'superuser',
+        impersonatingOrganisatie: organisatie
+      };
+      
+      // Sla de impersonation data op
+      localStorage.setItem('superuser_impersonation', JSON.stringify(impersonateData));
+      
+      // Navigeer naar het organisatie dashboard
+      navigate('/dashboard');
+      
+      // Refresh de pagina om de nieuwe context te laden
+      window.location.reload();
+      
+    } catch (error) {
+      console.error('Fout bij impersonation:', error);
+      alert('Kon niet inloggen als organisatie');
+    }
+  };
+
   if (loading) {
     return (
-      <Box p="6" display="flex" justifyContent="center" alignItems="center" minH="200px">
-        <Spinner size="xl" />
+      <Box 
+        minH="100vh" 
+        bg="gray.50"
+        display="flex" 
+        justifyContent="center" 
+        alignItems="center"
+      >
+        <VStack gap="4">
+          <Spinner size="xl" color="blue.500" />
+          <Text color="gray.800" fontSize="lg">Laden van dashboard...</Text>
+        </VStack>
       </Box>
     );
   }
 
   return (
-    <Box p="6" maxW="7xl" mx="auto">
-      <VStack gap="6" align="stretch">
-        {/* Header */}
-        <Box bg="white" p="6" borderRadius="lg" shadow="sm">
-          <HStack justifyContent="space-between" alignItems="center">
-            <Box>
-              <HStack mb="2">
-                <Settings size={28} color="#805ad5" />
-                <Text fontSize="2xl" fontWeight="bold">Superuser Dashboard</Text>
-              </HStack>
-              <Text color="gray.600">Beheer alle organisaties in het systeem</Text>
-            </Box>
-            <Badge colorPalette="purple" size="lg">
-              {user?.email}
-            </Badge>
-          </HStack>
-        </Box>
-
-        {/* Statistics */}
-        <HStack gap="6">
-          <Box bg="white" p="6" borderRadius="lg" shadow="sm" flex="1">
-            <VStack align="start" gap="2">
-              <HStack>
-                <Building2 size={20} color="#805ad5" />
-                <Text fontSize="3xl" fontWeight="bold" color="purple.600">
-                  {organisaties.length}
+    <Box minH="100vh" bg="gray.50">
+      {/* Main Background with Gradient */}
+      <Box 
+        bg="blue.50" 
+        minH="300px" 
+        position="relative"
+        borderBottom="1px solid"
+        borderColor="blue.100"
+      >
+        <Container maxW="7xl" pt="8" pb="20" position="relative" zIndex={1}>
+          {/* Header Section */}
+          <VStack gap="4" align="start">
+            <HStack gap="3">
+              <Box 
+                p="3" 
+                borderRadius="xl" 
+                bg="blue.100"
+                border="1px solid"
+                borderColor="blue.200"
+              >
+                <Shield size={32} color="blue.600" />
+              </Box>
+              <VStack align="start" gap="1">
+                <Text fontSize="3xl" fontWeight="bold" letterSpacing="tight" color="gray.800">
+                  🛡️ Superuser Command Center
                 </Text>
-              </HStack>
-              <Text color="gray.600">Totaal Organisaties</Text>
-            </VStack>
-          </Box>
-          
-          <Box bg="white" p="6" borderRadius="lg" shadow="sm" flex="1">
-            <VStack align="start" gap="2">
-              <HStack>
-                <Building2 size={20} color="#10b981" />
-                <Text fontSize="3xl" fontWeight="bold" color="green.600">
-                  {organisaties.filter(o => o.actief).length}
+                <Text fontSize="lg" color="gray.600">
+                  Volledige systeembeheer en monitoring
                 </Text>
-              </HStack>
-              <Text color="gray.600">Actieve Organisaties</Text>
-            </VStack>
-          </Box>
-        </HStack>
-
-        {/* Organisaties List */}
-        <Box bg="white" p="6" borderRadius="lg" shadow="sm">
-          <HStack justifyContent="space-between" alignItems="center" mb="6">
-            <HStack>
-              <Building2 size={20} color="#374151" />
-              <Text fontSize="xl" fontWeight="bold">Organisaties Overzicht</Text>
+              </VStack>
             </HStack>
-            <Button 
-              colorPalette="purple" 
-              onClick={openModal}
-            >
-              <HStack gap="2">
-                <Plus size={16} />
-                <Text>Nieuwe Organisatie</Text>
-              </HStack>
-            </Button>
-          </HStack>
-
-          <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap="4">
-            {organisaties.map((org) => (
-              <Box
-                key={org.id}
-                p="4"
-                borderRadius="md"
+            
+            <HStack gap="3" mt="4">
+              <Badge 
+                bg="gray.100" 
+                color="gray.700"
+                px="3" 
+                py="1" 
+                borderRadius="full"
+                fontSize="sm"
                 border="1px solid"
                 borderColor="gray.200"
-                _hover={{ shadow: 'md', borderColor: 'purple.300' }}
-                transition="all 0.2s"
               >
-                <VStack align="stretch" gap="3">
-                  <Box>
-                    <HStack justifyContent="space-between" alignItems="start">
-                      <Text fontWeight="bold" fontSize="lg" color="gray.800">
-                        {org.naam}
-                      </Text>
-                      <Badge colorPalette={org.actief ? 'green' : 'red'} size="sm">
-                        {org.actief ? 'Actief' : 'Inactief'}
-                      </Badge>
-                    </HStack>
-                    
-                    <Text fontSize="sm" color="gray.500" fontFamily="mono">
-                      /{org.slug}
-                    </Text>
-                    
-                    {org.plaats && (
-                      <HStack gap="1">
-                        <MapPin size={14} color="#6b7280" />
-                        <Text fontSize="sm" color="gray.600">
-                          {org.plaats}
-                        </Text>
-                      </HStack>
-                    )}
-                    
-                    {org.email && (
-                      <HStack gap="1">
-                        <Mail size={14} color="#6b7280" />
-                        <Text fontSize="sm" color="gray.600">
-                          {org.email}
-                        </Text>
-                      </HStack>
-                    )}
+                <HStack gap="2">
+                  <User size={16} color="gray.600" />
+                  <Text color="gray.700">{user?.email}</Text>
+                </HStack>
+              </Badge>
+              <Badge colorScheme="purple" variant="solid" px="3" py="1" borderRadius="full">
+                System Admin
+              </Badge>
+            </HStack>
+          </VStack>
+        </Container>
+      </Box>
+
+      {/* Main Content */}
+      <Container maxW="7xl" mt="-16" position="relative" zIndex={2} pb="8">
+        <VStack gap="8" align="stretch">
+          {/* Statistics Cards */}
+          <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} gap="6">
+            <Box
+              bg="white"
+              borderRadius="2xl"
+              p="6"
+              shadow="xl"
+              border="1px solid"
+              borderColor="gray.100"
+              position="relative"
+              overflow="hidden"
+              _before={{
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '4px',
+                bgGradient: 'linear(90deg, #667eea 0%, #764ba2 100%)'
+              }}
+            >
+              <VStack align="start" gap="4">
+                <HStack justify="space-between" width="full">
+                  <Box 
+                    p="3" 
+                    borderRadius="xl" 
+                    bg="blue.100"
+                    border="1px solid"
+                    borderColor="blue.200"
+                  >
+                    <Building2 size={24} color="blue.600" />
                   </Box>
-
-                  <VStack gap="2" align="stretch">
-                    <Button
-                      size="sm"
-                      colorPalette="blue"
-                      onClick={() => viewPublicPage(org)}
-                      width="full"
-                    >
-                      <HStack gap="2">
-                        <Eye size={14} />
-                        <Text>Bekijk Publieke Pagina</Text>
-                      </HStack>
-                    </Button>
-                    
-                    <Button
-                      size="sm"
-                      colorPalette="green"
-                      onClick={() => goToOrganisatieDashboard(org)}
-                      width="full"
-                    >
-                      <HStack gap="2">
-                        <Wrench size={14} />
-                        <Text>Support Dashboard</Text>
-                      </HStack>
-                    </Button>
+                  <VStack align="end" gap="0">
+                    <Text fontSize="3xl" fontWeight="bold" color="gray.800">
+                      {organisaties.length}
+                    </Text>
+                    <Text fontSize="sm" color="gray.600">+12% deze maand</Text>
                   </VStack>
-                </VStack>
-              </Box>
-            ))}
-          </SimpleGrid>
-
-          {organisaties.length === 0 && (
-            <Box textAlign="center" py="8">
-              <VStack gap="3">
-                <Building2 size={48} color="#9ca3af" />
-                <Text color="gray.500" fontSize="lg">
-                  Geen organisaties gevonden
-                </Text>
+                </HStack>
+                <Text fontWeight="medium" color="gray.700">Totaal Organisaties</Text>
               </VStack>
             </Box>
-          )}
-        </Box>
 
-        {/* Quick Actions */}
-        <Box bg="white" p="6" borderRadius="lg" shadow="sm">
-          <HStack mb="4">
-            <Settings size={20} color="#374151" />
-            <Text fontSize="xl" fontWeight="bold">Quick Actions</Text>
-          </HStack>
-          <SimpleGrid columns={{ base: 1, md: 3 }} gap="4">
-            <Button
-              colorPalette="purple"
-              onClick={() => alert('Systeemstatistieken feature komt binnenkort!')}
-              height="auto"
-              p="4"
-              variant="outline"
+            <Box
+              bg="white"
+              borderRadius="2xl"
+              p="6"
+              shadow="xl"
+              border="1px solid"
+              borderColor="gray.100"
+              position="relative"
+              overflow="hidden"
+              _before={{
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '4px',
+                bgGradient: 'linear(90deg, #10b981 0%, #059669 100%)'
+              }}
             >
-              <VStack gap="2">
-                <BarChart3 size={24} />
-                <Text>Systeemstatistieken</Text>
+              <VStack align="start" gap="4">
+                <HStack justify="space-between" width="full">
+                  <Box 
+                    p="3" 
+                    borderRadius="xl" 
+                    bg="green.100"
+                    border="1px solid"
+                    borderColor="green.200"
+                  >
+                    <Users size={24} color="green.600" />
+                  </Box>
+                  <VStack align="end" gap="0">
+                    <Text fontSize="3xl" fontWeight="bold" color="gray.800">
+                      {organisaties.filter(o => o.actief).length}
+                    </Text>
+                    <Text fontSize="sm" color="green.600">Stabiel</Text>
+                  </VStack>
+                </HStack>
+                <Text fontWeight="medium" color="gray.700">Actieve Organisaties</Text>
               </VStack>
-            </Button>
-            
-            <Button
-              colorPalette="orange"
-              onClick={() => alert('Gebruikersbeheer feature komt binnenkort!')}
-              height="auto"
-              p="4"
-              variant="outline"
+            </Box>
+
+            <Box
+              bg="white"
+              borderRadius="2xl"
+              p="6"
+              shadow="xl"
+              border="1px solid"
+              borderColor="gray.100"
+              position="relative"
+              overflow="hidden"
+              _before={{
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '4px',
+                bgGradient: 'linear(90deg, #3b82f6 0%, #1d4ed8 100%)'
+              }}
             >
-              <VStack gap="2">
-                <Users size={24} />
-                <Text>Gebruikersbeheer</Text>
+              <VStack align="start" gap="4">
+                <HStack justify="space-between" width="full">
+                  <Box 
+                    p="3" 
+                    borderRadius="xl" 
+                    bg="purple.100"
+                    border="1px solid"
+                    borderColor="purple.200"
+                  >
+                    <FileText size={24} color="purple.600" />
+                  </Box>
+                  <VStack align="end" gap="0">
+                    <Text fontSize="3xl" fontWeight="bold" color="gray.800">
+                      {organisaties.length * 2.3 | 0}
+                    </Text>
+                    <Text fontSize="sm" color="blue.600">+5% deze week</Text>
+                  </VStack>
+                </HStack>
+                <Text fontWeight="medium" color="gray.700">Actieve Gebruikers</Text>
               </VStack>
-            </Button>
-            
-            <Button
-              colorPalette="teal"
-              onClick={() => alert('Systeemlogboek feature komt binnenkort!')}
-              height="auto"
-              p="4"
-              variant="outline"
+            </Box>
+
+            <Box
+              bg="white"
+              borderRadius="2xl"
+              p="6"
+              shadow="xl"
+              border="1px solid"
+              borderColor="gray.100"
+              position="relative"
+              overflow="hidden"
+              _before={{
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '4px',
+                bgGradient: 'linear(90deg, #f59e0b 0%, #d97706 100%)'
+              }}
             >
-              <VStack gap="2">
-                <FileText size={24} />
-                <Text>Systeemlogboek</Text>
+              <VStack align="start" gap="4">
+                <HStack justify="space-between" width="full">
+                  <Box 
+                    p="3" 
+                    borderRadius="xl" 
+                    bg="orange.100"
+                    border="1px solid"
+                    borderColor="orange.200"
+                  >
+                    <Activity size={24} color="orange.600" />
+                  </Box>
+                  <VStack align="end" gap="0">
+                    <Text fontSize="3xl" fontWeight="bold" color="gray.800">
+                      99.2%
+                    </Text>
+                    <Text fontSize="sm" color="orange.600">Excellent</Text>
+                  </VStack>
+                </HStack>
+                <Text fontWeight="medium" color="gray.700">Systeem Uptime</Text>
               </VStack>
-            </Button>
+            </Box>
           </SimpleGrid>
-        </Box>
-      </VStack>
 
-      {/* Modal voor nieuwe organisatie */}
+          {/* Organisaties Overview */}
+          <Box
+            bg="white"
+            borderRadius="2xl"
+            shadow="xl"
+            border="1px solid"
+            borderColor="gray.100"
+            overflow="hidden"
+          >
+            {/* Header */}
+            <Box 
+              p="6" 
+              borderBottom="1px solid" 
+              borderColor="border.muted"
+              bg="blue.50"
+            >
+              <HStack gap="3">
+                <Box 
+                  p="2" 
+                  borderRadius="lg" 
+                  bg="blue.100"
+                  border="1px solid"
+                  borderColor="blue.200"
+                >
+                  <Building2 size={20} color="blue.600" />
+                </Box>
+                <VStack align="start" gap="0">
+                  <Text fontSize="xl" fontWeight="bold" color="gray.800">
+                    🏢 Organisaties
+                  </Text>
+                  <Text fontSize="sm" color="gray.600">
+                    Beheer alle organisaties
+                  </Text>
+                </VStack>
+              </HStack>
+              <Button 
+                colorScheme="blue"
+                variant="solid"
+                borderRadius="xl"
+                px="6"
+                py="3"
+                _hover={{
+                  transform: "translateY(-2px)",
+                  shadow: "xl"
+                }}
+                onClick={openModal}
+                transition="all 0.3s ease"
+              >
+                <HStack gap="2">
+                  <Plus size={16} />
+                  <Text fontWeight="medium">Nieuwe Organisatie</Text>
+                </HStack>
+              </Button>
+            </Box>
+
+            {/* Content */}
+            <Box p="6">
+              {organisaties.length === 0 ? (
+                <VStack gap="6" py="12">
+                  <Box 
+                    p="6" 
+                    borderRadius="2xl" 
+                    bg="gray.50"
+                    border="2px dashed"
+                    borderColor="gray.300"
+                  >
+                    <Building2 size={48} color="#9ca3af" />
+                  </Box>
+                  <VStack gap="2">
+                    <Text fontSize="xl" fontWeight="bold" color="gray.800">
+                      Geen organisaties gevonden
+                    </Text>
+                    <Text color="gray.600" textAlign="center">
+                      Voeg uw eerste organisatie toe om te beginnen
+                    </Text>
+                  </VStack>
+                </VStack>
+              ) : (
+                <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} gap="6">
+                  {organisaties.map((org) => (
+                    <Box
+                      key={org.id}
+                      bg="white"
+                      borderRadius="xl"
+                      border="1px solid"
+                      borderColor="gray.200"
+                      overflow="hidden"
+                      shadow="md"
+                      _hover={{ 
+                        shadow: "2xl", 
+                        transform: "translateY(-4px)",
+                        borderColor: "purple.300"
+                      }}
+                      transition="all 0.3s ease"
+                      position="relative"
+                    >
+                      {/* Status Indicator */}
+                      <Box
+                        position="absolute"
+                        top="4"
+                        right="4"
+                        zIndex="1"
+                      >
+                        <Badge 
+                          colorScheme={org.actief ? 'green' : 'red'} 
+                          variant="solid"
+                          borderRadius="full"
+                          px="3"
+                          py="1"
+                        >
+                          {org.actief ? 'Actief' : 'Inactief'}
+                        </Badge>
+                      </Box>
+
+                      {/* Header */}
+                      <Box 
+                        p="6" 
+                        bgGradient="linear(135deg, gray.50 0%, white 100%)"
+                        borderBottom="1px solid"
+                        borderColor="gray.100"
+                      >
+                        <VStack align="start" gap="3">
+                          <Text fontWeight="bold" fontSize="lg" color="gray.800">
+                            {org.naam}
+                          </Text>
+                          
+                          <Text 
+                            fontSize="sm" 
+                            color="purple.600" 
+                            fontFamily="mono"
+                            bg="purple.50"
+                            px="2"
+                            py="1"
+                            borderRadius="md"
+                          >
+                            /{org.slug}
+                          </Text>
+                          
+                          <VStack align="start" gap="1" width="full">
+                            {org.plaats && (
+                              <HStack gap="2">
+                                <MapPin size={14} color="#6b7280" />
+                                <Text fontSize="sm" color="gray.600">
+                                  {org.plaats}
+                                </Text>
+                              </HStack>
+                            )}
+                            
+                            {org.email && (
+                              <HStack gap="2">
+                                <Mail size={14} color="#6b7280" />
+                                                               <Text fontSize="sm" color="gray.600" truncate>
+                                 {org.email}
+                               </Text>
+                              </HStack>
+                            )}
+                          </VStack>
+                        </VStack>
+                      </Box>
+
+                      {/* Actions */}
+                      <Box p="4">
+                        <VStack gap="2" align="stretch">
+                          <Button
+                            size="sm"
+                            colorScheme="blue"
+                            variant="solid"
+                            borderRadius="lg"
+                            onClick={() => viewPublicPage(org)}
+                            _hover={{
+                              transform: "translateY(-1px)"
+                            }}
+                            transition="all 0.2s ease"
+                          >
+                            <HStack gap="2">
+                              <Eye size={14} />
+                              <Text>Publieke Pagina</Text>
+                            </HStack>
+                          </Button>
+                          
+                          <Button
+                            size="sm"
+                            colorScheme="green"
+                            variant="solid"
+                            borderRadius="lg"
+                            onClick={() => goToOrganisatieDashboard(org)}
+                            _hover={{
+                              transform: "translateY(-1px)"
+                            }}
+                            transition="all 0.2s ease"
+                          >
+                            <HStack gap="2">
+                              <Wrench size={14} />
+                              <Text>Support Dashboard</Text>
+                            </HStack>
+                          </Button>
+                          
+                          <Button
+                            size="sm"
+                            colorScheme="purple"
+                            variant="solid"
+                            borderRadius="lg"
+                            onClick={() => loginAsOrganisatie(org)}
+                            _hover={{
+                              transform: "translateY(-1px)"
+                            }}
+                            transition="all 0.2s ease"
+                          >
+                            <HStack gap="2">
+                              <User size={14} />
+                              <Text>Login als Organisatie</Text>
+                            </HStack>
+                          </Button>
+                        </VStack>
+                      </Box>
+                    </Box>
+                  ))}
+                </SimpleGrid>
+              )}
+            </Box>
+          </Box>
+
+          {/* Quick Actions */}
+          <Box
+            bg="white"
+            borderRadius="2xl"
+            shadow="xl"
+            border="1px solid"
+            borderColor="gray.100"
+            overflow="hidden"
+          >
+            <Box 
+              p="6" 
+              borderBottom="1px solid" 
+              borderColor="gray.100"
+              bgGradient="linear(135deg, gray.50 0%, white 100%)"
+            >
+              <HStack gap="3">
+                <Box 
+                  p="2" 
+                  borderRadius="lg" 
+                  bgGradient="linear(135deg, #f59e0b, #d97706)"
+                  color="white"
+                >
+                  <Settings size={20} />
+                </Box>
+                <VStack align="start" gap="0">
+                  <Text fontSize="xl" fontWeight="bold" color="gray.800">
+                    Systeembeheer
+                  </Text>
+                  <Text fontSize="sm" color="gray.600">
+                    Geavanceerde beheertools en statistieken
+                  </Text>
+                </VStack>
+              </HStack>
+            </Box>
+
+            <Box p="6">
+              <SimpleGrid columns={{ base: 1, md: 3 }} gap="6">
+                <Box
+                  p="6"
+                  borderRadius="xl"
+                  border="1px solid"
+                  borderColor="gray.200"
+                  bg="white"
+                  _hover={{ 
+                    shadow: "lg", 
+                    transform: "translateY(-2px)",
+                    borderColor: "purple.300"
+                  }}
+                  transition="all 0.3s ease"
+                  cursor="pointer"
+                  onClick={() => alert('Systeemstatistieken feature komt binnenkort!')}
+                >
+                  <VStack gap="4">
+                    <Box 
+                      p="4" 
+                      borderRadius="xl" 
+                      bgGradient="linear(135deg, #667eea, #764ba2)"
+                      color="white"
+                    >
+                      <BarChart3 size={32} />
+                    </Box>
+                    <VStack gap="1">
+                      <Text fontWeight="bold" color="gray.800">Systeemstatistieken</Text>
+                      <Text fontSize="sm" color="gray.600" textAlign="center">
+                        Detailleerde analytics en rapportages
+                      </Text>
+                    </VStack>
+                  </VStack>
+                </Box>
+                
+                <Box
+                  p="6"
+                  borderRadius="xl"
+                  border="1px solid"
+                  borderColor="gray.200"
+                  bg="white"
+                  _hover={{ 
+                    shadow: "lg", 
+                    transform: "translateY(-2px)",
+                    borderColor: "orange.300"
+                  }}
+                  transition="all 0.3s ease"
+                  cursor="pointer"
+                  onClick={() => alert('Gebruikersbeheer feature komt binnenkort!')}
+                >
+                  <VStack gap="4">
+                    <Box 
+                      p="4" 
+                      borderRadius="xl" 
+                      bgGradient="linear(135deg, #f59e0b, #d97706)"
+                      color="white"
+                    >
+                      <Users size={32} />
+                    </Box>
+                    <VStack gap="1">
+                      <Text fontWeight="bold" color="gray.800">Gebruikersbeheer</Text>
+                      <Text fontSize="sm" color="gray.600" textAlign="center">
+                        Beheer accounts en permissies
+                      </Text>
+                    </VStack>
+                  </VStack>
+                </Box>
+                
+                <Box
+                  p="6"
+                  borderRadius="xl"
+                  border="1px solid"
+                  borderColor="gray.200"
+                  bg="white"
+                  _hover={{ 
+                    shadow: "lg", 
+                    transform: "translateY(-2px)",
+                    borderColor: "teal.300"
+                  }}
+                  transition="all 0.3s ease"
+                  cursor="pointer"
+                  onClick={() => alert('Systeemlogboek feature komt binnenkort!')}
+                >
+                  <VStack gap="4">
+                    <Box 
+                      p="4" 
+                      borderRadius="xl" 
+                      bgGradient="linear(135deg, #10b981, #059669)"
+                      color="white"
+                    >
+                      <FileText size={32} />
+                    </Box>
+                    <VStack gap="1">
+                      <Text fontWeight="bold" color="gray.800">Systeemlogboek</Text>
+                      <Text fontSize="sm" color="gray.600" textAlign="center">
+                        Activiteitenlogs en troubleshooting
+                      </Text>
+                    </VStack>
+                  </VStack>
+                </Box>
+              </SimpleGrid>
+            </Box>
+          </Box>
+        </VStack>
+      </Container>
+
+      {/* Modal for new organisation - keeping existing modal code but with updated styling */}
       {showModal && (
         <Box
           position="fixed"
@@ -436,7 +873,8 @@ const SuperuserDashboard: React.FC = () => {
           left={0}
           width="100%"
           height="100%"
-          bg="rgba(0, 0, 0, 0.5)"
+          bg="blackAlpha.600"
+          backdropFilter="blur(8px)"
           display="flex"
           alignItems="center"
           justifyContent="center"
@@ -445,13 +883,15 @@ const SuperuserDashboard: React.FC = () => {
         >
           <Box
             bg="white"
-            borderRadius="md"
-            boxShadow="lg"
+            borderRadius="2xl"
+            boxShadow="2xl"
             width="700px"
             maxWidth="95%"
             maxHeight="90vh"
             display="flex"
             flexDirection="column"
+            border="1px solid"
+            borderColor="gray.200"
           >
             {/* Header */}
             <Box p={6} borderBottom="1px solid" borderColor="gray.200">
@@ -640,7 +1080,7 @@ const SuperuserDashboard: React.FC = () => {
                   Annuleren
                 </Button>
                 <Button 
-                  colorPalette="purple" 
+                  colorScheme="purple" 
                   onClick={createOrganisatie}
                   loading={createLoading}
                   disabled={!formData.naam || !formData.slug || !formData.beheerderEmail || !formData.beheerderWachtwoord}

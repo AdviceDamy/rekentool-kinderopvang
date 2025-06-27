@@ -8,11 +8,26 @@ import {
   IconButton,
   Text,
   createToaster,
+  Card,
+  Badge,
+  Flex,
+  Grid,
+  GridItem,
+  Container,
+  VStack,
+  HStack,
 } from '@chakra-ui/react';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { useAuth } from '../contexts/AuthContext';
 import { Opvangvorm, Tarief, TariefType, DagenWeekConfiguratie, VrijUrenConfiguratie } from '../types';
 import { opvangvormenAPI, tarievenAPI } from '../services/api';
 
 const TarievenPage: React.FC = () => {
+  const { organisatie } = useAuth();
   const [tarieven, setTarieven] = useState<Tarief[]>([]);
   const [opvangvormen, setOpvangvormen] = useState<Opvangvorm[]>([]);
   const [loading, setLoading] = useState(true);
@@ -430,74 +445,332 @@ const TarievenPage: React.FC = () => {
     return '-';
   };
 
+  // Statistics calculations
+  const totalTarieven = tarieven.length;
+  const uniekeOpvangvormen = Array.from(new Set(tarieven.map(t => t.opvangvorm_id))).length;
+  const complexeTarieven = tarieven.filter(t => t.type === 'dagen_week' || t.type === 'vrij_uren_week' || t.type === 'vrij_uren_maand').length;
+
+  if (loading) {
+    return (
+      <Box 
+        bg="gray.50" 
+        minH="100vh" 
+        display="flex" 
+        alignItems="center" 
+        justifyContent="center"
+      >
+        <Box textAlign="center">
+          <Box 
+            width="12" 
+            height="12" 
+            borderWidth="3px" 
+            borderColor="blue.200" 
+            borderTopColor="blue.500" 
+            borderRadius="full" 
+            animation="spin 1s linear infinite" 
+            mx="auto" 
+            mb="4"
+          />
+          <Text color="gray.600" fontSize="lg">Tarieven laden...</Text>
+        </Box>
+      </Box>
+    );
+  }
+
   return (
-    <Box p={6}>
-      <Box mb={6} display="flex" justifyContent="space-between" alignItems="center">
-        <Text fontSize="2xl" fontWeight="bold">
-          Tarieven beheren
-        </Text>
-        <Button colorPalette="blue" onClick={() => handleOpenModal()}>
-          + Nieuw tarief
-        </Button>
+    <Box minH="100vh" bg="gray.50">
+      {/* Header Background */}
+      <Box 
+        bg="blue.50" 
+        minH="240px" 
+        position="relative"
+        borderBottom="1px solid"
+        borderColor="blue.100"
+      >
+        <Container maxW="7xl" pt="8" pb="16" position="relative" zIndex={1}>
+          <VStack gap="4" align="start">
+            <HStack gap="3">
+              <Box 
+                p="3" 
+                borderRadius="xl" 
+                bg="blue.100"
+                border="1px solid"
+                borderColor="blue.200"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+              >
+                <AttachMoneyIcon fontSize="large" style={{ color: '#2563eb' }} />
+              </Box>
+              <VStack align="start" gap="1">
+                <Text fontSize="3xl" fontWeight="bold" letterSpacing="tight" color="gray.800">
+                  Tarieven beheren
+                </Text>
+                <Text fontSize="lg" color="gray.600">
+                  Beheer alle tariefstructuren voor uw opvangvormen
+                </Text>
+              </VStack>
+            </HStack>
+            
+            <HStack gap="3" mt="4">
+              {organisatie && (
+                <Badge 
+                  bg="gray.100" 
+                  color="gray.700"
+                  px="3" 
+                  py="1" 
+                  borderRadius="full"
+                  fontSize="sm"
+                  border="1px solid"
+                  borderColor="gray.200"
+                >
+                  <HStack gap="2">
+                    <TrendingUpIcon fontSize="small" style={{ color: '#4b5563' }} />
+                    <Text color="gray.700">{organisatie.naam}</Text>
+                  </HStack>
+                </Badge>
+              )}
+              
+              <Badge 
+                bg="green.100"
+                color="green.700"
+                px="3" 
+                py="1" 
+                borderRadius="full"
+                fontSize="sm"
+                border="1px solid"
+                borderColor="green.200"
+              >
+                {totalTarieven} Tarieven
+              </Badge>
+
+              <Button 
+                colorPalette="blue" 
+                size="sm"
+                onClick={() => handleOpenModal()}
+                px={4}
+              >
+                + Nieuw tarief
+              </Button>
+            </HStack>
+          </VStack>
+        </Container>
       </Box>
 
-      <Table.Root>
-        <Table.Header>
-          <Table.Row>
-            <Table.ColumnHeader>Naam</Table.ColumnHeader>
-            <Table.ColumnHeader>Opvangvorm</Table.ColumnHeader>
-            <Table.ColumnHeader>Type</Table.ColumnHeader>
-            <Table.ColumnHeader>Tarief</Table.ColumnHeader>
-            <Table.ColumnHeader>Omschrijving</Table.ColumnHeader>
-            <Table.ColumnHeader>Configuratie</Table.ColumnHeader>
-            <Table.ColumnHeader width="120px">Acties</Table.ColumnHeader>
-          </Table.Row>
-        </Table.Header>
-        <Table.Body>
-          {loading ? (
-            <Table.Row>
-              <Table.Cell colSpan={7} textAlign="center">Laden...</Table.Cell>
-            </Table.Row>
-          ) : tarieven.length === 0 ? (
-            <Table.Row>
-              <Table.Cell colSpan={7} textAlign="center">Geen tarieven gevonden</Table.Cell>
-            </Table.Row>
-          ) : (
-            tarieven.map((tarief) => (
-              <Table.Row key={tarief.id}>
-                <Table.Cell>{tarief.naam}</Table.Cell>
-                <Table.Cell>{getOpvangvormNaam(tarief.opvangvorm_id)}</Table.Cell>
-                <Table.Cell>{getTypeLabel(tarief.type)}</Table.Cell>
-                <Table.Cell>{getTariefDisplay(tarief)}</Table.Cell>
-                <Table.Cell>{tarief.omschrijving || '-'}</Table.Cell>
-                <Table.Cell>{getConfigurationDetails(tarief)}</Table.Cell>
-                <Table.Cell>
-                  <Box display="flex" gap={2}>
-                    <IconButton
-                      size="sm"
-                      colorPalette="blue"
-                      variant="ghost"
-                      onClick={() => handleOpenModal(tarief)}
-                    >
-                      ✏️
-                    </IconButton>
-                    <IconButton
-                      size="sm"
-                      colorPalette="red"
-                      variant="ghost"
-                      onClick={() => openDeleteDialog(tarief)}
-                    >
-                      🗑️
-                    </IconButton>
-                  </Box>
-                </Table.Cell>
-              </Table.Row>
-            ))
-          )}
-        </Table.Body>
-      </Table.Root>
+      {/* Main Content */}
+             {/* Main Content */}
+       <Container maxW="7xl" mt="-12" position="relative" zIndex={2} pb="8">
+        <VStack gap="8" align="stretch">
+          {/* Statistics Cards */}
+          <Grid templateColumns={{ base: "1fr", md: "repeat(3, 1fr)" }} gap={4}>
+        <GridItem>
+          <Card.Root 
+            bg="white" 
+            shadow="md" 
+            borderTop="4px" 
+            borderTopColor="blue.500"
+            transition="all 0.2s"
+            _hover={{ transform: "translateY(-2px)", shadow: "lg" }}
+          >
+            <Card.Body p={6}>
+              <Flex justify="space-between" align="center">
+                <Box>
+                  <Text color="gray.500" fontSize="sm" fontWeight="medium" mb={1}>
+                    TOTAAL TARIEVEN
+                  </Text>
+                  <Text fontSize="3xl" fontWeight="bold" color="gray.800">
+                    {totalTarieven}
+                  </Text>
+                </Box>
+                <Box 
+                  bg="blue.100" 
+                  p={3} 
+                  borderRadius="lg"
+                  color="blue.600"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                >
+                  <AttachMoneyIcon fontSize="large" />
+                </Box>
+              </Flex>
+            </Card.Body>
+          </Card.Root>
+        </GridItem>
 
-      {/* Modal voor toevoegen/bewerken */}
+        <GridItem>
+          <Card.Root 
+            bg="white" 
+            shadow="md" 
+            borderTop="4px" 
+            borderTopColor="green.500"
+            transition="all 0.2s"
+            _hover={{ transform: "translateY(-2px)", shadow: "lg" }}
+          >
+            <Card.Body p={6}>
+              <Flex justify="space-between" align="center">
+                <Box>
+                  <Text color="gray.500" fontSize="sm" fontWeight="medium" mb={1}>
+                    OPVANGVORMEN
+                  </Text>
+                  <Text fontSize="3xl" fontWeight="bold" color="gray.800">
+                    {uniekeOpvangvormen}
+                  </Text>
+                </Box>
+                <Box 
+                  bg="green.100" 
+                  p={3} 
+                  borderRadius="lg"
+                  color="green.600"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                >
+                  <TrendingUpIcon fontSize="large" />
+                </Box>
+              </Flex>
+            </Card.Body>
+          </Card.Root>
+        </GridItem>
+
+        <GridItem>
+          <Card.Root 
+            bg="white" 
+            shadow="md" 
+            borderTop="4px" 
+            borderTopColor="purple.500"
+            transition="all 0.2s"
+            _hover={{ transform: "translateY(-2px)", shadow: "lg" }}
+          >
+            <Card.Body p={6}>
+              <Flex justify="space-between" align="center">
+                <Box>
+                  <Text color="gray.500" fontSize="sm" fontWeight="medium" mb={1}>
+                    COMPLEXE TARIEVEN
+                  </Text>
+                  <Text fontSize="3xl" fontWeight="bold" color="gray.800">
+                    {complexeTarieven}
+                  </Text>
+                </Box>
+                <Box 
+                  bg="purple.100" 
+                  p={3} 
+                  borderRadius="lg"
+                  color="purple.600"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                >
+                  <ScheduleIcon fontSize="large" />
+                </Box>
+              </Flex>
+            </Card.Body>
+          </Card.Root>
+          </GridItem>
+          </Grid>
+
+          {/* Main Table Card */}
+          <Card.Root bg="white" shadow="md">
+            <Card.Header p={6} pb={0}>
+              <Text fontSize="xl" fontWeight="semibold" color="gray.800">
+                Alle tarieven
+              </Text>
+            </Card.Header>
+            <Card.Body p={6}>
+              <Table.Root>
+                <Table.Header>
+                  <Table.Row>
+                    <Table.ColumnHeader color="gray.600" fontWeight="semibold">Naam</Table.ColumnHeader>
+                    <Table.ColumnHeader color="gray.600" fontWeight="semibold">Opvangvorm</Table.ColumnHeader>
+                    <Table.ColumnHeader color="gray.600" fontWeight="semibold">Type</Table.ColumnHeader>
+                    <Table.ColumnHeader color="gray.600" fontWeight="semibold">Tarief</Table.ColumnHeader>
+                    <Table.ColumnHeader color="gray.600" fontWeight="semibold">Omschrijving</Table.ColumnHeader>
+                    <Table.ColumnHeader color="gray.600" fontWeight="semibold">Configuratie</Table.ColumnHeader>
+                    <Table.ColumnHeader color="gray.600" fontWeight="semibold" width="120px">Acties</Table.ColumnHeader>
+                  </Table.Row>
+                </Table.Header>
+                <Table.Body>
+                  {tarieven.length === 0 ? (
+                    <Table.Row>
+                      <Table.Cell colSpan={7}>
+                        <Box textAlign="center" py={8}>
+                          <Text color="gray.500" fontSize="lg" mb={2}>
+                            Geen tarieven gevonden
+                          </Text>
+                          <Text color="gray.400" fontSize="sm">
+                            Voeg uw eerste tarief toe om te beginnen
+                          </Text>
+                        </Box>
+                      </Table.Cell>
+                    </Table.Row>
+                  ) : (
+                    tarieven.map((tarief) => (
+                      <Table.Row key={tarief.id} _hover={{ bg: "gray.50" }}>
+                        <Table.Cell>
+                          <Text fontWeight="medium" color="gray.800">
+                            {tarief.naam}
+                          </Text>
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Text color="gray.600">
+                            {getOpvangvormNaam(tarief.opvangvorm_id)}
+                          </Text>
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Badge 
+                            colorPalette="blue"
+                            size="sm"
+                            variant="subtle"
+                          >
+                            {getTypeLabel(tarief.type)}
+                          </Badge>
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Text fontWeight="medium" color="green.600">
+                            {getTariefDisplay(tarief)}
+                          </Text>
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Text color="gray.600">
+                            {tarief.omschrijving || '-'}
+                          </Text>
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Text color="gray.600" fontSize="sm">
+                            {getConfigurationDetails(tarief)}
+                          </Text>
+                        </Table.Cell>
+                        <Table.Cell>
+                          <Flex gap={2}>
+                            <IconButton
+                              size="sm"
+                              colorPalette="blue"
+                              variant="ghost"
+                              onClick={() => handleOpenModal(tarief)}
+                              title="Bewerken"
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="sm"
+                              colorPalette="red"
+                              variant="ghost"
+                              onClick={() => openDeleteDialog(tarief)}
+                              title="Verwijderen"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Flex>
+                        </Table.Cell>
+                      </Table.Row>
+                    ))
+                  )}
+                </Table.Body>
+              </Table.Root>
+            </Card.Body>
+          </Card.Root>
+
+      {/* Add/Edit Modal */}
       {showModal && (
         <Box
           position="fixed"
@@ -512,36 +785,40 @@ const TarievenPage: React.FC = () => {
           zIndex={1000}
           p={4}
         >
-          <Box
+          <Card.Root
             bg="white"
-            borderRadius="md"
-            boxShadow="lg"
-            width="600px"
-            maxWidth="95%"
-            maxHeight="90vh"
+            maxW="600px"
+            width="95%"
+            maxH="90vh"
+            shadow="xl"
+            borderRadius="lg"
+            overflow="hidden"
             display="flex"
             flexDirection="column"
           >
-            {/* Header - vast bovenaan */}
-            <Box p={6} borderBottom="1px solid" borderColor="gray.200">
-              <Text fontSize="lg" fontWeight="bold">
+            {/* Header */}
+            <Card.Header bg="blue.50" px={6} py={4}>
+              <Text fontSize="xl" fontWeight="bold" color="gray.800">
                 {selectedTarief ? 'Tarief bewerken' : 'Nieuw tarief'}
               </Text>
-            </Box>
+            </Card.Header>
             
-            {/* Scrollable content */}
+            {/* Scrollable Content */}
             <Box flex={1} overflowY="auto" p={6}>
               <Box mb={4}>
-                <Text mb={2}>Naam *</Text>
+                <Text mb={2} color="gray.700" fontWeight="medium">Naam *</Text>
                 <Input
                   value={formData.naam}
                   onChange={(e) => setFormData({ ...formData, naam: e.target.value })}
                   placeholder="Naam van het tarief"
+                  bg="white"
+                  borderColor="gray.200"
+                  _focus={{ borderColor: "blue.500", boxShadow: "0 0 0 1px blue.500" }}
                 />
               </Box>
               
               <Box mb={4}>
-                <Text mb={2}>Opvangvorm *</Text>
+                <Text mb={2} color="gray.700" fontWeight="medium">Opvangvorm *</Text>
                 <select
                   value={formData.opvangvorm_id}
                   onChange={(e) => setFormData({ ...formData, opvangvorm_id: e.target.value })}
@@ -563,7 +840,7 @@ const TarievenPage: React.FC = () => {
               </Box>
               
               <Box mb={4}>
-                <Text mb={2}>Type *</Text>
+                <Text mb={2} color="gray.700" fontWeight="medium">Type *</Text>
                 <select
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value as TariefType })}
@@ -587,7 +864,7 @@ const TarievenPage: React.FC = () => {
               {/* Tarief veld alleen voor eenvoudige types */}
               {(formData.type === 'uur' || formData.type === 'dag' || formData.type === 'vast_maand') && (
                 <Box mb={4}>
-                  <Text mb={2}>Tarief (€) *</Text>
+                  <Text mb={2} color="gray.700" fontWeight="medium">Tarief (€) *</Text>
                   <Input
                     type="number"
                     step="0.01"
@@ -595,6 +872,9 @@ const TarievenPage: React.FC = () => {
                     value={formData.tarief}
                     onChange={(e) => setFormData({ ...formData, tarief: e.target.value })}
                     placeholder="0.00"
+                    bg="white"
+                    borderColor="gray.200"
+                    _focus={{ borderColor: "blue.500", boxShadow: "0 0 0 1px blue.500" }}
                   />
                 </Box>
               )}
@@ -603,48 +883,50 @@ const TarievenPage: React.FC = () => {
               {formData.type === 'dagen_week' && (
                 <>
                   <Box mb={4}>
-                    <Text mb={2}>Dagen *</Text>
-                    <Box display="flex" flexDirection="column" gap={2} p={3} border="1px solid" borderColor="gray.200" borderRadius="md">
-                      {weekDagen.map((dag) => (
-                        <Box key={dag.key} display="flex" alignItems="center" gap={3}>
-                          <Box minWidth="120px">
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                              <input
-                                type="checkbox"
-                                checked={formData.dagen.includes(dag.key)}
-                                onChange={(e) => handleDagChange(dag.key, e.target.checked)}
-                                style={{ marginRight: '8px' }}
-                              />
-                              <Text fontSize="sm">{dag.label}</Text>
-                            </label>
-                          </Box>
-                          {formData.dagen.includes(dag.key) && (
-                            <Box display="flex" alignItems="center" gap={2}>
-                              <Text fontSize="sm" minWidth="40px">Uren:</Text>
-                              <Input
-                                type="number"
-                                step="0.5"
-                                min="0"
-                                max="24"
-                                width="80px"
-                                size="sm"
-                                value={formData.urenPerDag[dag.key] || ''}
-                                onChange={(e) => handleUrenPerDagChange(dag.key, e.target.value)}
-                                placeholder="8"
-                              />
-                              <Text fontSize="xs" color="gray.500">uur</Text>
+                    <Text mb={2} color="gray.700" fontWeight="medium">Dagen *</Text>
+                    <Card.Root border="1px" borderColor="gray.200" p={3}>
+                      <Card.Body>
+                        {weekDagen.map((dag) => (
+                          <Box key={dag.key} display="flex" alignItems="center" gap={3} mb={2}>
+                            <Box minWidth="120px">
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={formData.dagen.includes(dag.key)}
+                                  onChange={(e) => handleDagChange(dag.key, e.target.checked)}
+                                />
+                                <Text fontSize="sm" color="gray.700">{dag.label}</Text>
+                              </label>
                             </Box>
-                          )}
-                        </Box>
-                      ))}
-                    </Box>
-                    <Text fontSize="xs" color="gray.600" mt={1}>
-                      Tip: Laat uren leeg voor standaard opvangtijden
-                    </Text>
+                            {formData.dagen.includes(dag.key) && (
+                              <Box display="flex" alignItems="center" gap={2}>
+                                <Text fontSize="sm" minWidth="40px" color="gray.600">Uren:</Text>
+                                <Input
+                                  type="number"
+                                  step="0.5"
+                                  min="0"
+                                  max="24"
+                                  width="80px"
+                                  size="sm"
+                                  value={formData.urenPerDag[dag.key] || ''}
+                                  onChange={(e) => handleUrenPerDagChange(dag.key, e.target.value)}
+                                  placeholder="8"
+                                  bg="white"
+                                />
+                                <Text fontSize="xs" color="gray.500">uur</Text>
+                              </Box>
+                            )}
+                          </Box>
+                        ))}
+                        <Text fontSize="xs" color="gray.600" mt={2}>
+                          Tip: Laat uren leeg voor standaard opvangtijden
+                        </Text>
+                      </Card.Body>
+                    </Card.Root>
                   </Box>
                   
                   <Box mb={4}>
-                    <Text mb={2}>Uurtarief (€) *</Text>
+                    <Text mb={2} color="gray.700" fontWeight="medium">Uurtarief (€) *</Text>
                     <Input
                       type="number"
                       step="0.01"
@@ -652,6 +934,9 @@ const TarievenPage: React.FC = () => {
                       value={formData.uurtarief}
                       onChange={(e) => setFormData({ ...formData, uurtarief: e.target.value })}
                       placeholder="0.00"
+                      bg="white"
+                      borderColor="gray.200"
+                      _focus={{ borderColor: "blue.500", boxShadow: "0 0 0 1px blue.500" }}
                     />
                   </Box>
                 </>
@@ -661,7 +946,7 @@ const TarievenPage: React.FC = () => {
               {formData.type === 'vrij_uren_week' && (
                 <>
                   <Box mb={4}>
-                    <Text mb={2}>Maximum aantal uren per week *</Text>
+                    <Text mb={2} color="gray.700" fontWeight="medium">Maximum aantal uren per week *</Text>
                     <Input
                       type="number"
                       step="0.5"
@@ -669,11 +954,14 @@ const TarievenPage: React.FC = () => {
                       value={formData.maxUren}
                       onChange={(e) => setFormData({ ...formData, maxUren: e.target.value })}
                       placeholder="40"
+                      bg="white"
+                      borderColor="gray.200"
+                      _focus={{ borderColor: "blue.500", boxShadow: "0 0 0 1px blue.500" }}
                     />
                   </Box>
                   
                   <Box mb={4}>
-                    <Text mb={2}>Uurtarief (€) *</Text>
+                    <Text mb={2} color="gray.700" fontWeight="medium">Uurtarief (€) *</Text>
                     <Input
                       type="number"
                       step="0.01"
@@ -681,6 +969,9 @@ const TarievenPage: React.FC = () => {
                       value={formData.vrijeUrenTarief}
                       onChange={(e) => setFormData({ ...formData, vrijeUrenTarief: e.target.value })}
                       placeholder="0.00"
+                      bg="white"
+                      borderColor="gray.200"
+                      _focus={{ borderColor: "blue.500", boxShadow: "0 0 0 1px blue.500" }}
                     />
                   </Box>
                 </>
@@ -690,7 +981,7 @@ const TarievenPage: React.FC = () => {
               {formData.type === 'vrij_uren_maand' && (
                 <>
                   <Box mb={4}>
-                    <Text mb={2}>Maximum aantal uren per maand *</Text>
+                    <Text mb={2} color="gray.700" fontWeight="medium">Maximum aantal uren per maand *</Text>
                     <Input
                       type="number"
                       step="0.5"
@@ -698,11 +989,14 @@ const TarievenPage: React.FC = () => {
                       value={formData.maxUren}
                       onChange={(e) => setFormData({ ...formData, maxUren: e.target.value })}
                       placeholder="160"
+                      bg="white"
+                      borderColor="gray.200"
+                      _focus={{ borderColor: "blue.500", boxShadow: "0 0 0 1px blue.500" }}
                     />
                   </Box>
                   
                   <Box mb={4}>
-                    <Text mb={2}>Uurtarief (€) *</Text>
+                    <Text mb={2} color="gray.700" fontWeight="medium">Uurtarief (€) *</Text>
                     <Input
                       type="number"
                       step="0.01"
@@ -710,38 +1004,44 @@ const TarievenPage: React.FC = () => {
                       value={formData.vrijeUrenTarief}
                       onChange={(e) => setFormData({ ...formData, vrijeUrenTarief: e.target.value })}
                       placeholder="0.00"
+                      bg="white"
+                      borderColor="gray.200"
+                      _focus={{ borderColor: "blue.500", boxShadow: "0 0 0 1px blue.500" }}
                     />
                   </Box>
                 </>
               )}
               
               <Box>
-                <Text mb={2}>Omschrijving</Text>
+                <Text mb={2} color="gray.700" fontWeight="medium">Omschrijving</Text>
                 <Textarea
                   value={formData.omschrijving}
                   onChange={(e) => setFormData({ ...formData, omschrijving: e.target.value })}
                   placeholder="Optionele omschrijving"
                   rows={3}
+                  bg="white"
+                  borderColor="gray.200"
+                  _focus={{ borderColor: "blue.500", boxShadow: "0 0 0 1px blue.500" }}
                 />
               </Box>
             </Box>
             
-            {/* Footer - vast onderaan */}
-            <Box p={6} borderTop="1px solid" borderColor="gray.200">
-              <Box display="flex" gap={3} justifyContent="flex-end">
+            {/* Footer */}
+            <Card.Footer p={6} bg="gray.50">
+              <Flex gap={3} justify="flex-end">
                 <Button variant="outline" onClick={handleCloseModal}>
                   Annuleren
                 </Button>
                 <Button colorPalette="blue" onClick={handleSubmit}>
                   {selectedTarief ? 'Bijwerken' : 'Aanmaken'}
                 </Button>
-              </Box>
-            </Box>
-          </Box>
+              </Flex>
+            </Card.Footer>
+          </Card.Root>
         </Box>
       )}
 
-      {/* Delete dialog */}
+      {/* Delete Confirmation Modal */}
       {showDeleteDialog && deleteTarief && (
         <Box
           position="fixed"
@@ -755,40 +1055,45 @@ const TarievenPage: React.FC = () => {
           justifyContent="center"
           zIndex={1000}
         >
-          <Box
+          <Card.Root
             bg="white"
-            p={6}
-            borderRadius="md"
-            boxShadow="lg"
-            width="400px"
-            maxWidth="90%"
+            maxW="400px"
+            width="90%"
+            shadow="xl"
+            borderRadius="lg"
+            overflow="hidden"
           >
-            <Text fontSize="lg" fontWeight="bold" mb={4}>
-              Tarief verwijderen
-            </Text>
-            
-            <Text mb={6}>
-              Weet u zeker dat u "{deleteTarief.naam}" wilt verwijderen? 
-              Deze actie kan niet ongedaan worden gemaakt.
-            </Text>
-            
-            <Box display="flex" gap={3} justifyContent="flex-end">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setShowDeleteDialog(false);
-                  setDeleteTarief(null);
-                }}
-              >
-                Annuleren
-              </Button>
-              <Button colorPalette="red" onClick={handleDelete}>
-                Verwijderen
-              </Button>
-            </Box>
-          </Box>
+            <Card.Header bg="red.50" px={6} py={4}>
+              <Text fontSize="xl" fontWeight="bold" color="gray.800">
+                Tarief verwijderen
+              </Text>
+            </Card.Header>
+            <Card.Body p={6}>
+              <Text color="gray.600" mb={6}>
+                Weet u zeker dat u "{deleteTarief.naam}" wilt verwijderen? 
+                Deze actie kan niet ongedaan worden gemaakt.
+              </Text>
+              
+              <Flex gap={3} justify="flex-end">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowDeleteDialog(false);
+                    setDeleteTarief(null);
+                  }}
+                >
+                  Annuleren
+                </Button>
+                <Button colorPalette="red" onClick={handleDelete}>
+                  Verwijderen
+                </Button>
+              </Flex>
+            </Card.Body>
+          </Card.Root>
         </Box>
       )}
+        </VStack>
+      </Container>
     </Box>
   );
 };

@@ -9,6 +9,8 @@ interface Organisatie {
   actief_toeslagjaar?: number;
   gemeente_toeslag_percentage?: number;
   gemeente_toeslag_actief?: boolean;
+  standaard_inkomensklasse?: string;
+  toeslag_automatisch_berekenen?: boolean;
 }
 
 interface Opvangvorm {
@@ -88,8 +90,7 @@ const RekentoolPage: React.FC = () => {
     dagen_per_week: 4
   });
   
-  const [geselecteerdeInkomensklasse, setGeselecteerdeInkomensklasse] = useState<string>('');
-  const [toeslagBerekening, setToeslagBerekening] = useState<boolean>(true);
+  // Toeslagberekening wordt nu automatisch bepaald door organisatie instellingen
   
   // Resultaat
   const [resultaat, setResultaat] = useState<{
@@ -184,10 +185,7 @@ const RekentoolPage: React.FC = () => {
       return;
     }
 
-    if (toeslagBerekening && !geselecteerdeInkomensklasse) {
-      setError('Selecteer uw inkomenscategorie voor toeslagberekening');
-      return;
-    }
+    // Geen validatie meer nodig voor inkomensklasse - wordt automatisch bepaald
 
     setBerekening(true);
     setError(null);
@@ -237,13 +235,27 @@ const RekentoolPage: React.FC = () => {
         berekening_details = `${Math.round(gefactureerde_uren)} uren × €${config.uurtarief}/uur (max ${Math.round(max_uren)} uren)`;
       }
 
-      // Voor nu simuleren we de toeslag berekening
+      // Automatische toeslag berekening op basis van organisatie instellingen
       let toeslagResultaat: ToeslagResultaat | undefined;
 
-      if (toeslagBerekening && organisatie?.actief_toeslagjaar && geselecteerdeInkomensklasse) {
+      if (organisatie?.toeslag_automatisch_berekenen !== false && organisatie?.actief_toeslagjaar) {
         try {
-          const geselecteerdeKlasse = inkomensklassen.find(k => k.id.toString() === geselecteerdeInkomensklasse);
-          if (geselecteerdeKlasse) {
+          let standaardKlasse: Inkomensklasse | undefined;
+          
+          // Gebruik standaard inkomensklasse van organisatie, anders fallback naar eerste klasse
+          if (organisatie.standaard_inkomensklasse) {
+            try {
+              standaardKlasse = JSON.parse(organisatie.standaard_inkomensklasse);
+            } catch {
+              // Als parsing faalt, gebruik eerste beschikbare klasse
+              standaardKlasse = inkomensklassen[0];
+            }
+          } else {
+            // Geen standaard ingesteld, gebruik eerste klasse als fallback
+            standaardKlasse = inkomensklassen[0];
+          }
+          
+          if (standaardKlasse) {
             const opvangvormNaam = geselecteerdeOpvangvorm?.naam || '';
             const toeslagType = mapOpvangvormNaarToeslagType(opvangvormNaam);
             
@@ -252,7 +264,7 @@ const RekentoolPage: React.FC = () => {
               actief_toeslagjaar: organisatie.actief_toeslagjaar,
               gemeente_toeslag_percentage: organisatie.gemeente_toeslag_percentage || 0,
               gemeente_toeslag_actief: organisatie.gemeente_toeslag_actief || false,
-              gezinsinkomen: (geselecteerdeKlasse.min + (geselecteerdeKlasse.max || geselecteerdeKlasse.min)) / 2, // Gebruik midden van bracket
+              gezinsinkomen: (standaardKlasse.min + (standaardKlasse.max || standaardKlasse.min)) / 2, // Gebruik midden van bracket
               kinderen: [{
                 opvangvorm: toeslagType,
                 uren_per_maand: kind.uren_per_week * 4.33,
@@ -277,10 +289,21 @@ const RekentoolPage: React.FC = () => {
           }
         } catch (toeslagError) {
           console.error('Fout bij toeslagberekening:', toeslagError);
-          // Fallback naar oude simulatie indien API faalt
-          const geselecteerdeKlasse = inkomensklassen.find(k => k.id.toString() === geselecteerdeInkomensklasse);
-          if (geselecteerdeKlasse) {
-            const landelijkeToeslag = brutokosten * (geselecteerdeKlasse.perc_first_child / 100);
+          // Fallback naar lokale simulatie indien API faalt
+          let standaardKlasseFallback: Inkomensklasse | undefined;
+          
+          if (organisatie.standaard_inkomensklasse) {
+            try {
+              standaardKlasseFallback = JSON.parse(organisatie.standaard_inkomensklasse);
+            } catch {
+              standaardKlasseFallback = inkomensklassen[0];
+            }
+          } else {
+            standaardKlasseFallback = inkomensklassen[0];
+          }
+          
+          if (standaardKlasseFallback) {
+            const landelijkeToeslag = brutokosten * (standaardKlasseFallback.perc_first_child / 100);
             const gemeentelijkeToeslag = organisatie.gemeente_toeslag_actief 
               ? brutokosten * ((organisatie.gemeente_toeslag_percentage || 0) / 100)
               : 0;
@@ -476,75 +499,36 @@ const RekentoolPage: React.FC = () => {
               </Box>
             </HStack>
 
-            {/* Kinderopvangtoeslag sectie */}
-            {organisatie.actief_toeslagjaar && inkomensklassen.length > 0 && (
-              <>
-                <Box borderTop="1px solid" borderColor="gray.200" pt={6}>
-                  <Text fontSize="lg" fontWeight="bold" mb={4}>
-                    🏛️ Kinderopvangtoeslag ({organisatie.actief_toeslagjaar})
-                  </Text>
-                  
-                  <VStack gap={4} align="stretch">
-                    <Box>
-                      <HStack mb={2}>
-                        <input
-                          type="checkbox"
-                          checked={toeslagBerekening}
-                          onChange={(e) => {
-                            setToeslagBerekening(e.target.checked);
-                            setResultaat(null);
-                          }}
-                        />
-                        <Text fontWeight="medium">Kinderopvangtoeslag berekenen</Text>
-                      </HStack>
-                      <Text fontSize="sm" color="gray.600">
-                        Vink aan om uw netto kosten te berekenen inclusief kinderopvangtoeslag
-                      </Text>
-                    </Box>
-
-                    {toeslagBerekening && (
-                      <Box>
-                        <Text mb={2} fontWeight="medium">Gezamenlijk bruto jaarinkomen *</Text>
-                        <select
-                          value={geselecteerdeInkomensklasse}
-                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
-                            setGeselecteerdeInkomensklasse(e.target.value);
-                            setResultaat(null);
-                          }}
-                          style={{
-                            width: '100%',
-                            padding: '0.5rem',
-                            border: '1px solid #E2E8F0',
-                            borderRadius: '6px',
-                            backgroundColor: 'white'
-                          }}
-                        >
-                          <option value="">Selecteer uw inkomenscategorie</option>
-                          {inkomensklassen.map((klasse) => (
-                            <option key={klasse.id} value={klasse.id}>
-                              {klasse.label} ({klasse.perc_first_child}% toeslag)
-                            </option>
-                          ))}
-                        </select>
-                        <Text fontSize="xs" color="gray.500" mt={1}>
-                          Dit is een schatting. Voor de definitieve toeslag dient u een aanvraag in bij de Belastingdienst.
-                        </Text>
-                      </Box>
-                    )}
-
-                    {organisatie.gemeente_toeslag_actief && (
-                      <Box bg="blue.50" p={3} borderRadius="md">
-                        <Text fontSize="sm" fontWeight="medium" color="blue.800">
-                          💡 Gemeentelijke toeslag
-                        </Text>
-                        <Text fontSize="sm" color="blue.700">
-                          Deze organisatie biedt een extra gemeentelijke toeslag van {organisatie.gemeente_toeslag_percentage}%
-                        </Text>
-                      </Box>
-                    )}
-                  </VStack>
-                </Box>
-              </>
+            {/* Automatische kinderopvangtoeslag info */}
+            {organisatie.toeslag_automatisch_berekenen !== false && organisatie.actief_toeslagjaar && (
+              <Box bg="blue.50" p={4} borderRadius="md" border="1px solid" borderColor="blue.200">
+                <Text fontWeight="bold" color="blue.800" mb={2}>
+                  🏛️ Kinderopvangtoeslag inbegrepen ({organisatie.actief_toeslagjaar})
+                </Text>
+                <Text fontSize="sm" color="blue.700">
+                  Uw berekening bevat automatisch een schatting van de kinderopvangtoeslag. 
+                  Voor de definitieve toeslag dient u een aanvraag in bij de Belastingdienst.
+                  {organisatie.standaard_inkomensklasse && (() => {
+                    try {
+                      const klasse = JSON.parse(organisatie.standaard_inkomensklasse);
+                      return (
+                        <span>
+                          <br />
+                          <strong>Gebruikt voor berekening:</strong> {klasse.label}
+                        </span>
+                      );
+                    } catch {
+                      return null;
+                    }
+                  })()}
+                  {organisatie.gemeente_toeslag_actief && (
+                    <span>
+                      <br />
+                      <strong>Gemeentelijke toeslag:</strong> {organisatie.gemeente_toeslag_percentage}% extra
+                    </span>
+                  )}
+                </Text>
+              </Box>
             )}
 
             <Button
@@ -581,84 +565,217 @@ const RekentoolPage: React.FC = () => {
                 </Text>
               </Box>
 
-              {/* Toeslag resultaten */}
+              {/* Toeslag resultaten - Verbeterde visualisatie */}
               {resultaat.toeslag && (
                 <>
                   <Box borderTop="1px solid" borderColor="gray.200" pt={4} />
                   
-                  {/* Landelijke toeslag */}
-                  <Box bg="green.50" p={4} borderRadius="md">
-                    <Text fontWeight="bold" fontSize="lg" color="green.800">
-                      Kinderopvangtoeslag (landelijk)
-                    </Text>
-                    <Text fontSize="2xl" fontWeight="bold" color="green.600">
-                      €{resultaat.toeslag.totaal_toeslag_landelijk.toFixed(2)}
-                    </Text>
-                    <Text fontSize="sm" color="green.700">
-                      Gebaseerd op toeslagtabel {resultaat.toeslag.gebruikte_toeslagtabel.jaar}
-                    </Text>
-                  </Box>
+                  <Text fontSize="lg" fontWeight="bold" mb={4} color="gray.800">
+                    💰 Kinderopvangtoeslag Berekening
+                  </Text>
 
-                  {/* Gemeentelijke toeslag */}
-                  {resultaat.toeslag.totaal_toeslag_gemeente > 0 && (
-                    <Box bg="blue.50" p={4} borderRadius="md">
-                      <Text fontWeight="bold" fontSize="lg" color="blue.800">
-                        Gemeentelijke toeslag
-                      </Text>
-                      <Text fontSize="2xl" fontWeight="bold" color="blue.600">
-                        €{resultaat.toeslag.totaal_toeslag_gemeente.toFixed(2)}
-                      </Text>
-                      <Text fontSize="sm" color="blue.700">
-                        Extra {organisatie.gemeente_toeslag_percentage}% gemeentelijke bijdrage
-                      </Text>
-                    </Box>
-                  )}
-
-                  {/* Netto kosten */}
-                  <Box bg="purple.50" p={4} borderRadius="md" border="2px solid" borderColor="purple.200">
-                    <Text fontWeight="bold" fontSize="lg" color="purple.800">
-                      Uw netto kosten per maand
-                    </Text>
-                    <Text fontSize="3xl" fontWeight="bold" color="purple.600">
-                      €{resultaat.toeslag.totaal_nettokosten.toFixed(2)}
-                    </Text>
-                    <Text fontSize="sm" color="purple.700">
-                      Brutokosten minus kinderopvangtoeslag
-                    </Text>
-                  </Box>
-
-                  {/* Overzicht */}
-                  <Box bg="gray.50" p={4} borderRadius="md">
-                    <Text fontWeight="bold" mb={2}>Overzicht berekening:</Text>
-                    <VStack gap={1} align="stretch" fontSize="sm">
-                      <HStack justifyContent="space-between">
-                        <Text>Brutokosten:</Text>
-                        <Text>€{resultaat.toeslag.totaal_brutokosten.toFixed(2)}</Text>
+                  {/* Visuele stappenplan */}
+                  <Box bg="gradient.50" p={6} borderRadius="xl" border="1px solid" borderColor="gray.200" mb={4}>
+                    <VStack gap={4} align="stretch">
+                      {/* Stap 1: Brutokosten */}
+                      <HStack gap={4} align="center">
+                        <Box 
+                          minW={10} 
+                          h={10} 
+                          bg="blue.100" 
+                          borderRadius="full" 
+                          display="flex" 
+                          alignItems="center" 
+                          justifyContent="center"
+                          fontSize="sm"
+                          fontWeight="bold"
+                          color="blue.600"
+                        >
+                          1
+                        </Box>
+                        <Box flex={1}>
+                          <Text fontWeight="medium" color="blue.800">Brutokosten opvang</Text>
+                          <Text fontSize="sm" color="gray.600">{resultaat.berekening_details}</Text>
+                        </Box>
+                        <Text fontSize="lg" fontWeight="bold" color="blue.600">
+                          €{resultaat.toeslag.totaal_brutokosten.toFixed(2)}
+                        </Text>
                       </HStack>
-                      <HStack justifyContent="space-between">
-                        <Text>Kinderopvangtoeslag:</Text>
-                        <Text color="green.600">-€{resultaat.toeslag.totaal_toeslag_landelijk.toFixed(2)}</Text>
+
+                      {/* Pijl naar beneden */}
+                      <Box display="flex" justifyContent="center">
+                        <Text fontSize="2xl" color="gray.400">↓</Text>
+                      </Box>
+
+                      {/* Stap 2: Landelijke toeslag */}
+                      <HStack gap={4} align="center">
+                        <Box 
+                          minW={10} 
+                          h={10} 
+                          bg="green.100" 
+                          borderRadius="full" 
+                          display="flex" 
+                          alignItems="center" 
+                          justifyContent="center"
+                          fontSize="sm"
+                          fontWeight="bold"
+                          color="green.600"
+                        >
+                          2
+                        </Box>
+                        <Box flex={1}>
+                          <Text fontWeight="medium" color="green.800">Landelijke kinderopvangtoeslag</Text>
+                          <Text fontSize="sm" color="gray.600">
+                            Toeslagtabel {resultaat.toeslag.gebruikte_toeslagtabel.jaar}
+                          </Text>
+                        </Box>
+                        <Text fontSize="lg" fontWeight="bold" color="green.600">
+                          -€{resultaat.toeslag.totaal_toeslag_landelijk.toFixed(2)}
+                        </Text>
                       </HStack>
+
+                      {/* Stap 3: Gemeentelijke toeslag (indien van toepassing) */}
                       {resultaat.toeslag.totaal_toeslag_gemeente > 0 && (
-                        <HStack justifyContent="space-between">
-                          <Text>Gemeentelijke toeslag:</Text>
-                          <Text color="blue.600">-€{resultaat.toeslag.totaal_toeslag_gemeente.toFixed(2)}</Text>
-                        </HStack>
+                        <>
+                          <Box display="flex" justifyContent="center">
+                            <Text fontSize="2xl" color="gray.400">↓</Text>
+                          </Box>
+                          <HStack gap={4} align="center">
+                            <Box 
+                              minW={10} 
+                              h={10} 
+                              bg="cyan.100" 
+                              borderRadius="full" 
+                              display="flex" 
+                              alignItems="center" 
+                              justifyContent="center"
+                              fontSize="sm"
+                              fontWeight="bold"
+                              color="cyan.600"
+                            >
+                              3
+                            </Box>
+                            <Box flex={1}>
+                              <Text fontWeight="medium" color="cyan.800">Gemeentelijke toeslag</Text>
+                              <Text fontSize="sm" color="gray.600">
+                                Extra {organisatie.gemeente_toeslag_percentage}% gemeente bijdrage
+                              </Text>
+                            </Box>
+                            <Text fontSize="lg" fontWeight="bold" color="cyan.600">
+                              -€{resultaat.toeslag.totaal_toeslag_gemeente.toFixed(2)}
+                            </Text>
+                          </HStack>
+                        </>
                       )}
-                      <Box borderTop="1px solid" borderColor="gray.200" pt={1} />
-                      <HStack justifyContent="space-between" fontWeight="bold">
-                        <Text>Netto kosten:</Text>
-                        <Text color="purple.600">€{resultaat.toeslag.totaal_nettokosten.toFixed(2)}</Text>
-                      </HStack>
+
+                      {/* Eindresultaat */}
+                      <Box borderTop="2px solid" borderColor="purple.200" pt={4}>
+                        <HStack gap={4} align="center">
+                          <Box 
+                            minW={12} 
+                            h={12} 
+                            bg="purple.100" 
+                            borderRadius="full" 
+                            display="flex" 
+                            alignItems="center" 
+                            justifyContent="center"
+                            fontSize="lg"
+                            fontWeight="bold"
+                            color="purple.600"
+                          >
+                            =
+                          </Box>
+                          <Box flex={1}>
+                            <Text fontSize="xl" fontWeight="bold" color="purple.800">
+                              Uw netto kosten per maand
+                            </Text>
+                            <Text fontSize="sm" color="gray.600">
+                              {(((resultaat.toeslag.totaal_nettokosten / resultaat.toeslag.totaal_brutokosten) * 100) || 0).toFixed(0)}% van de brutokosten
+                            </Text>
+                          </Box>
+                          <Text fontSize="3xl" fontWeight="bold" color="purple.600">
+                            €{resultaat.toeslag.totaal_nettokosten.toFixed(2)}
+                          </Text>
+                        </HStack>
+                      </Box>
                     </VStack>
                   </Box>
 
-                  <Box bg="yellow.50" p={3} borderRadius="md">
-                    <Text fontSize="sm" color="yellow.800">
-                      <strong>Let op:</strong> Dit is een indicatieve berekening. Voor de definitieve kinderopvangtoeslag 
-                      dient u een aanvraag in bij de Belastingdienst. De werkelijke toeslag kan afwijken afhankelijk van 
-                      uw specifieke situatie.
-                    </Text>
+                  {/* Besparingen visualisatie */}
+                  <Box bg="green.50" p={4} borderRadius="lg" border="1px solid" borderColor="green.200">
+                    <HStack gap={4} align="center">
+                      <Text fontSize="2xl">💚</Text>
+                      <VStack align="start" gap={0} flex={1}>
+                        <Text fontWeight="bold" color="green.800">
+                          Uw totale besparing per maand
+                        </Text>
+                        <Text fontSize="sm" color="green.700">
+                          Door kinderopvangtoeslag bespaart u maandelijks
+                        </Text>
+                      </VStack>
+                      <Text fontSize="2xl" fontWeight="bold" color="green.600">
+                        €{(resultaat.toeslag.totaal_toeslag_landelijk + resultaat.toeslag.totaal_toeslag_gemeente).toFixed(2)}
+                      </Text>
+                    </HStack>
+                    
+                    <Box mt={3} p={3} bg="white" borderRadius="md">
+                      <Text fontSize="sm" fontWeight="medium" mb={2}>Besparing per jaar:</Text>
+                      <Text fontSize="lg" fontWeight="bold" color="green.600">
+                        €{((resultaat.toeslag.totaal_toeslag_landelijk + resultaat.toeslag.totaal_toeslag_gemeente) * 12).toFixed(2)}
+                      </Text>
+                    </Box>
+                  </Box>
+
+                  {/* Tariefdetails */}
+                  {resultaat.toeslag.kinderen[0] && (
+                    <Box bg="blue.50" p={4} borderRadius="lg" border="1px solid" borderColor="blue.200">
+                      <Text fontWeight="bold" mb={3} color="blue.800">
+                        🔍 Detailinformatie berekening
+                      </Text>
+                      <VStack gap={2} align="stretch" fontSize="sm">
+                        <HStack justifyContent="space-between">
+                          <Text>Uw uurtarief:</Text>
+                          <Text fontWeight="medium">€{(resultaat.toeslag.kinderen[0].vergoed_uurtarief || 0).toFixed(2)}/uur</Text>
+                        </HStack>
+                        <HStack justifyContent="space-between">
+                          <Text>Vergoed aantal uren per maand:</Text>
+                          <Text fontWeight="medium">{Math.round(resultaat.toeslag.kinderen[0].vergoed_uren || 0)} uren</Text>
+                        </HStack>
+                        <HStack justifyContent="space-between">
+                          <Text>Maximum uurtarief voor toeslag:</Text>
+                          <Text fontWeight="medium">
+                            €{(resultaat.toeslag.gebruikte_toeslagtabel.max_hourly_rates[
+                              mapOpvangvormNaarToeslagType(opvangvormen.find(o => o.id === parseInt(kind.opvangvorm_id))?.naam || '')
+                            ] || 0).toFixed(2)}/uur
+                          </Text>
+                        </HStack>
+                        <Box borderTop="1px solid" borderColor="blue.200" pt={2}>
+                          <Text fontSize="xs" color="blue.600">
+                            * Maximum 230 uren per maand komen in aanmerking voor toeslag
+                          </Text>
+                        </Box>
+                      </VStack>
+                    </Box>
+                  )}
+
+                  {/* Disclaimer */}
+                  <Box bg="yellow.50" p={4} borderRadius="lg" border="1px solid" borderColor="yellow.200">
+                    <HStack gap={3} align="start">
+                      <Text fontSize="xl">⚠️</Text>
+                      <VStack align="start" gap={1} flex={1}>
+                        <Text fontSize="sm" fontWeight="bold" color="yellow.800">
+                          Belangrijke informatie
+                        </Text>
+                        <Text fontSize="sm" color="yellow.700">
+                          Dit is een <strong>indicatieve berekening</strong> gebaseerd op de huidige toeslagtabel en uw opgegeven gegevens. 
+                          Voor de definitieve kinderopvangtoeslag dient u een aanvraag in bij de Belastingdienst via 
+                          <Text as="span" fontWeight="bold"> toeslagen.nl</Text>.
+                        </Text>
+                        <Text fontSize="xs" color="yellow.600" mt={2}>
+                          De werkelijke toeslag kan afwijken door wijzigingen in uw inkomen, werkelijke opvanguren of andere persoonlijke omstandigheden.
+                        </Text>
+                      </VStack>
+                    </HStack>
                   </Box>
                 </>
               )}

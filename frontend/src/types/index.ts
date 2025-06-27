@@ -90,4 +90,7 @@ export interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
   loading: boolean;
+  isImpersonating?: boolean;
+  originalUser?: User | null;
+  stopImpersonation?: () => void;
 } 

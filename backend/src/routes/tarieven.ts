@@ -21,6 +21,7 @@ router.get('/publiek/:organisatieId', getTarievenPubliek);
 
 // Beveiligde routes vereisen authenticatie en organisatie beheerder rol
 router.use(authenticateToken);
+router.use(organisatieContext); // Voor impersonation support
 router.use(requireOrganisatieBeheerder);
 
 // GET /api/tarieven/beheer - Alle tarieven van de organisatie (voor beheerders)

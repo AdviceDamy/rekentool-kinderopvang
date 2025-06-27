@@ -11,7 +11,7 @@ export interface OrganisatieRequest extends Request {
 
 /**
  * Middleware om organisatie context te identificeren
- * Kijkt naar 'org' query parameter of 'X-Organisation-Slug' header
+ * Kijkt naar 'org' query parameter, 'X-Organisation-Slug' header, of 'X-Impersonate-Organisation' header
  */
 export const organisatieContext = async (
   req: OrganisatieRequest,
@@ -19,6 +19,23 @@ export const organisatieContext = async (
   next: NextFunction
 ): Promise<void> => {
   try {
+    // Check voor impersonation (heeft voorrang)
+    const impersonateOrgId = req.headers['x-impersonate-organisation'] as string;
+    
+    if (impersonateOrgId && req.user?.role === 'superuser') {
+      const organisatie = await OrganisatieModel.getById(parseInt(impersonateOrgId));
+      
+      if (organisatie) {
+        req.organisatie = {
+          id: organisatie.id!,
+          slug: organisatie.slug,
+          naam: organisatie.naam
+        };
+        next();
+        return;
+      }
+    }
+    
     // Probeer slug te vinden in query parameter of header
     const slug = req.query.org as string || req.headers['x-organisation-slug'] as string;
     
