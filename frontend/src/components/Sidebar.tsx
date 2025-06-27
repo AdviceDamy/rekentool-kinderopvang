@@ -3,22 +3,19 @@ import { Box, Button, Text, VStack, HStack, Badge, Separator } from '@chakra-ui/
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
-import { 
-  Home, 
-  Baby, 
-  DollarSign, 
-  Settings, 
-  Building2, 
-  LogOut, 
-  FileText, 
-  User,
-  Target,
-  CreditCard,
-  Shield,
-  Users,
-  Layers,
-  Palette
-} from 'lucide-react';
+import HomeIcon from '@mui/icons-material/Home';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import SettingsIcon from '@mui/icons-material/Settings';
+import BusinessIcon from '@mui/icons-material/Business';
+import LogoutIcon from '@mui/icons-material/Logout';
+import TableChartIcon from '@mui/icons-material/TableChart';
+import PersonIcon from '@mui/icons-material/Person';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
+import SecurityIcon from '@mui/icons-material/Security';
+import GroupIcon from '@mui/icons-material/Group';
+import AppsIcon from '@mui/icons-material/Apps';
 
 const Sidebar: React.FC = () => {
   const navigate = useNavigate();
@@ -29,37 +26,37 @@ const Sidebar: React.FC = () => {
     { 
       path: '/dashboard', 
       label: 'Dashboard', 
-      icon: Home,
+      icon: HomeIcon,
       description: 'Overzicht & statistieken'
     },
     { 
       path: '/opvangvormen', 
       label: 'Opvangvormen', 
-      icon: Baby,
+      icon: AssignmentIcon,
       description: 'KDV, BSO, Gastouder'
     },
     { 
       path: '/tarieven', 
       label: 'Tarieven', 
-      icon: DollarSign,
+      icon: AttachMoneyIcon,
       description: 'Prijzen & kosten'
     },
     { 
       path: '/rekentool-instellingen', 
       label: 'Rekentool', 
-      icon: Target,
+      icon: SettingsIcon,
       description: 'Wizard & configuratie'
     },
     { 
       path: '/toeslag-instellingen', 
       label: 'Toeslag', 
-      icon: CreditCard,
+      icon: CreditCardIcon,
       description: 'Kinderopvangtoeslag'
     },
     { 
       path: '/organisatie-profiel', 
       label: 'Organisatie', 
-      icon: Building2,
+      icon: BusinessIcon,
       description: 'Profiel & instellingen'
     },
   ];
@@ -68,31 +65,31 @@ const Sidebar: React.FC = () => {
     { 
       path: '/superuser', 
       label: 'Command Center', 
-      icon: Shield,
+      icon: SecurityIcon,
       description: 'Systeem overzicht'
     },
     { 
       path: '/organisaties-beheer', 
       label: 'Organisaties', 
-      icon: Building2,
+      icon: BusinessIcon,
       description: 'Beheer organisaties'
     },
     { 
       path: '/gebruikers-beheer', 
       label: 'Gebruikers', 
-      icon: Users,
+      icon: GroupIcon,
       description: 'Account beheer'
     },
     { 
       path: '/toeslagtabellen', 
       label: 'Toeslagtabellen', 
-      icon: FileText,
+      icon: TableChartIcon,
       description: 'Landelijke tabellen'
     },
     { 
       path: '/systeem-instellingen', 
       label: 'Systeem', 
-      icon: Settings,
+      icon: SettingsIcon,
       description: 'Configuratie & logs'
     },
   ];
@@ -131,8 +128,11 @@ const Sidebar: React.FC = () => {
                 bg="blue.100"
                 border="1px solid"
                 borderColor="blue.200"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
               >
-                <Layers size={24} color="blue.600" />
+                <AppsIcon fontSize="large" style={{ color: '#2563eb' }} />
               </Box>
               <VStack align="start" gap="0">
                 <Text fontSize="lg" fontWeight="bold" color="gray.800" lineHeight="1.2">
@@ -157,7 +157,7 @@ const Sidebar: React.FC = () => {
                 borderColor="purple.200"
               >
                 <HStack gap="1">
-                  <Shield size={12} color="purple.600" />
+                  <SecurityIcon fontSize="small" style={{ color: '#7c3aed' }} />
                   <Text color="purple.700">Superuser</Text>
                 </HStack>
               </Badge>
@@ -238,8 +238,14 @@ const Sidebar: React.FC = () => {
                     p="2" 
                     borderRadius="lg"
                     bg={isActive ? "blue.200" : "transparent"}
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
                   >
-                    <IconComponent size={18} color={isActive ? "blue.700" : "gray.600"} />
+                    <IconComponent 
+                      fontSize="small" 
+                      style={{ color: isActive ? "#1d4ed8" : "#4b5563" }} 
+                    />
                   </Box>
                   <VStack align="start" gap="0" flex="1">
                     <Text fontSize="sm" fontWeight="medium" color={isActive ? "gray.800" : "gray.700"}>
@@ -276,7 +282,7 @@ const Sidebar: React.FC = () => {
                borderColor="green.200"
              >
                <HStack gap="2">
-                 <Target size={14} color="green.600" />
+                 <PlayArrowIcon fontSize="small" style={{ color: '#16a34a' }} />
                  <Text fontSize="xs" color="green.700">Test Rekentool</Text>
                </HStack>
              </Button>
@@ -299,7 +305,7 @@ const Sidebar: React.FC = () => {
             }}
           >
             <HStack gap="2">
-              <LogOut size={14} color="gray.600" />
+              <LogoutIcon fontSize="small" style={{ color: '#4b5563' }} />
               <Text fontSize="xs" color="gray.600">Uitloggen</Text>
             </HStack>
           </Button>

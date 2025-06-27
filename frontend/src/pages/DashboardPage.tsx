@@ -16,39 +16,36 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { UserRole } from '../types';
-import { 
-  Baby, 
-  DollarSign, 
-  ExternalLink, 
-  Target, 
-  Settings, 
-  User,
-  TrendingUp,
-  Activity,
-  Zap,
-  Star,
-  Shield,
-  CreditCard,
-  Building2,
-  ArrowRight,
-  Eye,
-  BarChart3,
-  Calendar,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Lightbulb,
-  Rocket,
-  Users,
-  FileText,
-  Layers,
-  Sparkles,
-  Award,
-  ChevronRight,
-  RefreshCw,
-  Globe,
-  Bookmark
-} from 'lucide-react';
+import AssignmentIcon from '@mui/icons-material/Assignment';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import LaunchIcon from '@mui/icons-material/Launch';
+import SettingsIcon from '@mui/icons-material/Settings';
+import PersonIcon from '@mui/icons-material/Person';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import ShowChartIcon from '@mui/icons-material/ShowChart';
+import FlashOnIcon from '@mui/icons-material/FlashOn';
+import StarIcon from '@mui/icons-material/Star';
+import SecurityIcon from '@mui/icons-material/Security';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
+import BusinessIcon from '@mui/icons-material/Business';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ErrorIcon from '@mui/icons-material/Error';
+import LightbulbIcon from '@mui/icons-material/Lightbulb';
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
+import GroupIcon from '@mui/icons-material/Group';
+import DescriptionIcon from '@mui/icons-material/Description';
+import AppsIcon from '@mui/icons-material/Apps';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import LanguageIcon from '@mui/icons-material/Language';
+import BookmarkIcon from '@mui/icons-material/Bookmark';
 import { opvangvormenAPI, tarievenAPI } from '../services/api';
 import { gradients } from '../theme';
 
@@ -157,8 +154,11 @@ const DashboardPage: React.FC = () => {
               top="50%"
               left="50%"
               transform="translate(-50%, -50%)"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
             >
-              <Sparkles size={20} color="blue.600" />
+              <AutoAwesomeIcon fontSize="small" style={{ color: '#2563eb' }} />
             </Box>
           </Box>
           <VStack gap="2">
@@ -205,8 +205,11 @@ const DashboardPage: React.FC = () => {
                     bg="purple.100"
                     border="1px solid"
                     borderColor="purple.200"
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="center"
                   >
-                    <Shield size={24} color="purple.600" />
+                    <SecurityIcon fontSize="large" style={{ color: '#7c3aed' }} />
                   </Box>
                   <VStack align="start" gap="1">
                     <HStack gap="2">
@@ -234,7 +237,7 @@ const DashboardPage: React.FC = () => {
                   }}
                 >
                   <HStack gap="2">
-                    <ArrowRight size={16} />
+                    <ArrowForwardIcon fontSize="small" />
                     <Text>Terug naar Command Center</Text>
                   </HStack>
                 </Button>
@@ -258,7 +261,7 @@ const DashboardPage: React.FC = () => {
                   justifyContent="center"
                   position="relative"
                 >
-                  <Building2 size={32} color="blue.600" />
+                  <BusinessIcon fontSize="large" style={{ color: '#2563eb' }} />
                   <Box
                     position="absolute"
                     bottom="0"
@@ -289,7 +292,7 @@ const DashboardPage: React.FC = () => {
                       borderColor="gray.200"
                     >
                       <HStack gap="2">
-                        <User size={14} color="gray.600" />
+                        <PersonIcon fontSize="small" style={{ color: '#4b5563' }} />
                         <Text color="gray.700">{user?.email}</Text>
                       </HStack>
                     </Badge>
@@ -303,7 +306,7 @@ const DashboardPage: React.FC = () => {
                       fontWeight="bold"
                     >
                       <HStack gap="2">
-                        {isSystemReady() ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
+                        {isSystemReady() ? <CheckCircleIcon fontSize="small" /> : <ErrorIcon fontSize="small" />}
                         <Text>{isSystemReady() ? 'Operationeel' : 'Setup Vereist'}</Text>
                       </HStack>
                     </Badge>
@@ -386,7 +389,7 @@ const DashboardPage: React.FC = () => {
                     borderColor="blue.200"
                     shadow="lg"
                   >
-                    <Baby size={28} color="blue.600" />
+                    <AssignmentIcon fontSize="large" style={{ color: '#2563eb' }} />
                   </Box>
                   <VStack align="end" gap="0">
                     <Text fontSize="4xl" fontWeight="900" color="fg" lineHeight="1">
@@ -452,7 +455,7 @@ const DashboardPage: React.FC = () => {
                     borderColor="green.200"
                     shadow="lg"
                   >
-                    <DollarSign size={28} color="green.600" />
+                    <AttachMoneyIcon fontSize="large" style={{ color: '#16a34a' }} />
                   </Box>
                   <VStack align="end" gap="0">
                     <Text fontSize="4xl" fontWeight="900" color="fg" lineHeight="1">
@@ -516,7 +519,7 @@ const DashboardPage: React.FC = () => {
                     borderColor={isSystemReady() ? "green.200" : "orange.200"}
                     shadow="lg"
                   >
-                    {isSystemReady() ? <Shield size={28} color="green.600" /> : <AlertCircle size={28} color="orange.600" />}
+                    <SecurityIcon fontSize="large" style={{ color: '#7c3aed' }} />
                   </Box>
                   <VStack align="end" gap="0">
                     <Badge 
@@ -593,7 +596,7 @@ const DashboardPage: React.FC = () => {
                     borderColor="purple.200"
                     shadow="lg"
                   >
-                    <BarChart3 size={28} color="purple.600" />
+                    <BarChartIcon fontSize="large" style={{ color: '#dc2626' }} />
                   </Box>
                   <VStack align="end" gap="0">
                     <Text fontSize="4xl" fontWeight="900" color="fg" lineHeight="1">
@@ -612,7 +615,7 @@ const DashboardPage: React.FC = () => {
                     Door ouders uitgevoerd
                   </Text>
                   <HStack gap="2" mt="2">
-                    <TrendingUp size={12} color="#8b5cf6" />
+                    <TrendingUpIcon fontSize="large" style={{ color: '#eab308' }} />
                     <Text fontSize="xs" color="fg.subtle">
                       +12% t.o.v. vorige maand
                     </Text>
@@ -649,7 +652,7 @@ const DashboardPage: React.FC = () => {
                     border="1px solid"
                     borderColor="blue.200"
                   >
-                    <Rocket size={32} color="blue.600" />
+                    <RocketLaunchIcon fontSize="large" style={{ color: '#2563eb' }} />
                   </Box>
                   <VStack align="start" gap="1">
                     <Text fontSize="2xl" fontWeight="bold" color="gray.800">
@@ -666,7 +669,7 @@ const DashboardPage: React.FC = () => {
                 {/* Primary Actions */}
                 {[
                   {
-                    icon: Baby,
+                    icon: AssignmentIcon,
                     title: 'Opvangvormen Beheren',
                     description: 'KDV, BSO, Gastouder configureren',
                     badge: `${stats.opvangvormen} actief`,
@@ -674,7 +677,7 @@ const DashboardPage: React.FC = () => {
                     path: '/opvangvormen'
                   },
                   {
-                    icon: DollarSign,
+                    icon: AttachMoneyIcon,
                     title: 'Tarieven Instellen',
                     description: 'Prijzen per uur, dag of maand',
                     badge: `${stats.tarieven} tarieven`,
@@ -682,7 +685,7 @@ const DashboardPage: React.FC = () => {
                     path: '/tarieven'
                   },
                   {
-                    icon: Target,
+                    icon: SettingsIcon,
                     title: 'Rekentool Configureren',
                     description: 'Wizard stappen en publicatie',
                     badge: 'Geavanceerd',
@@ -690,7 +693,7 @@ const DashboardPage: React.FC = () => {
                     path: '/rekentool-instellingen'
                   },
                   {
-                    icon: CreditCard,
+                    icon: CreditCardIcon,
                     title: 'Toeslag Instellingen',
                     description: 'Kinderopvangtoeslag configuratie',
                     badge: 'Overheid',
@@ -720,7 +723,7 @@ const DashboardPage: React.FC = () => {
                           bg={`${action.color}.50`}
                           color={`${action.color}.600`}
                         >
-                          <action.icon size={20} />
+                          <action.icon fontSize="large" />
                         </Box>
                         <VStack align="start" gap="1" flex="1">
                           <Text fontWeight="semibold" color="fg">
@@ -741,7 +744,7 @@ const DashboardPage: React.FC = () => {
                         >
                           {action.badge}
                         </Badge>
-                        <ChevronRight size={16} color="#9CA3AF" />
+                        <ChevronRightIcon fontSize="large" />
                       </HStack>
                     </HStack>
                     {index < 3 && <Separator my="2" />}
@@ -767,15 +770,15 @@ const DashboardPage: React.FC = () => {
                 <VStack gap="6" align="stretch">
                   <HStack justify="space-between">
                     <HStack gap="3">
-                                          <Box 
-                      p="3" 
-                      borderRadius="xl" 
-                      bg="teal.100"
-                      border="1px solid"
-                      borderColor="teal.200"
-                    >
-                      <Building2 size={24} color="teal.600" />
-                    </Box>
+                      <Box 
+                        p="3" 
+                        borderRadius="xl" 
+                        bg="teal.100"
+                        border="1px solid"
+                        borderColor="teal.200"
+                      >
+                        <BusinessIcon fontSize="large" style={{ color: '#2563eb' }} />
+                      </Box>
                       <VStack align="start" gap="0">
                         <Text fontSize="lg" fontWeight="bold" color="fg">
                           Organisatie Profiel
@@ -793,7 +796,7 @@ const DashboardPage: React.FC = () => {
                       color="teal.600"
                       onClick={() => navigate('/organisatie-profiel')}
                     >
-                      <ArrowRight size={16} />
+                      <ArrowForwardIcon fontSize="large" />
                     </IconButton>
                   </HStack>
                   
@@ -811,7 +814,7 @@ const DashboardPage: React.FC = () => {
                         </Text>
                         <HStack gap="4">
                           <HStack gap="1">
-                            <Calendar size={14} color="#0d9488" />
+                            <CalendarTodayIcon fontSize="small" style={{ color: '#0d9488' }} />
                             <Text fontSize="xs" color="teal.700">
                               Laatst bijgewerkt: {metrics.lastActivity}
                             </Text>
@@ -841,7 +844,7 @@ const DashboardPage: React.FC = () => {
                       border="1px solid"
                       borderColor="cyan.200"
                     >
-                      <Globe size={24} color="cyan.600" />
+                      <AppsIcon fontSize="large" style={{ color: '#06b6d4' }} />
                     </Box>
                     <VStack align="start" gap="0">
                       <Text fontSize="lg" fontWeight="bold" color="fg">
@@ -864,9 +867,9 @@ const DashboardPage: React.FC = () => {
                       transition="all 0.2s ease"
                     >
                       <HStack gap="2">
-                        <Eye size={16} />
+                        <VisibilityIcon fontSize="large" />
                         <Text>Test Publieke Rekentool</Text>
-                        <ExternalLink size={14} />
+                        <LaunchIcon fontSize="small" />
                       </HStack>
                     </Button>
                     
@@ -911,7 +914,7 @@ const DashboardPage: React.FC = () => {
                         border="1px solid"
                         borderColor={isSystemReady() ? "green.200" : "orange.200"}
                       >
-                        <Activity size={24} color={isSystemReady() ? "green.600" : "orange.600"} />
+                        <AutoAwesomeIcon fontSize="large" style={{ color: '#2563eb' }} />
                       </Box>
                       <VStack align="start" gap="0">
                         <Text fontSize="lg" fontWeight="bold" color="fg">
@@ -929,7 +932,7 @@ const DashboardPage: React.FC = () => {
                       colorScheme="gray"
                       onClick={loadDashboardData}
                     >
-                      <RefreshCw size={16} />
+                      <RefreshIcon fontSize="large" />
                     </IconButton>
                   </HStack>
 
@@ -985,9 +988,9 @@ const DashboardPage: React.FC = () => {
                               {item.count}
                             </Badge>
                             {item.status ? (
-                              <CheckCircle size={14} color="#10b981" />
+                              <CheckCircleIcon fontSize="small" />
                             ) : (
-                              <AlertCircle size={14} color="#6b7280" />
+                              <ErrorIcon fontSize="small" />
                             )}
                           </HStack>
                         </HStack>
@@ -1019,7 +1022,7 @@ const DashboardPage: React.FC = () => {
                   border="1px solid"
                   borderColor="blue.200"
                 >
-                  <Lightbulb size={32} color="blue.600" />
+                  <LightbulbIcon fontSize="large" style={{ color: '#2563eb' }} />
                 </Box>
                 <VStack align="start" gap="4" flex="1">
                   <VStack align="start" gap="2">
@@ -1062,7 +1065,7 @@ const DashboardPage: React.FC = () => {
                       onClick={() => navigate(stats.opvangvormen === 0 ? '/opvangvormen' : '/tarieven')}
                     >
                       <HStack gap="2">
-                        <Rocket size={16} />
+                        <RocketLaunchIcon fontSize="large" />
                         <Text>Start Setup</Text>
                       </HStack>
                     </Button>
